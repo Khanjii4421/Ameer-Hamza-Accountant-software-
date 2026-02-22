@@ -580,79 +580,81 @@ export default function LaborExpensesPage() {
                             }}>Clear Filters</Button>
                         </div>
                     ) : (
-                        <div className="overflow-x-auto">
-                            <div className="mb-2 text-right">
-                                <span className="text-xs font-bold text-gray-400 uppercase">Filtered Total: </span>
-                                <span className="text-sm font-black text-red-600">Rs. {filteredHistory.reduce((sum, e) => sum + Number(e.amount), 0).toLocaleString()}</span>
-                            </div>
-                            <table className="w-full">
-                                <thead className="bg-gray-50 border-b border-gray-100">
-                                    <tr>
-                                        <th className="text-left py-3 px-4 text-sm font-semibold text-gray-600">Date</th>
-                                        <th className="text-left py-3 px-4 text-sm font-semibold text-gray-600">Site</th>
-                                        <th className="text-left py-3 px-4 text-sm font-semibold text-gray-600">Vendor / Worker</th>
-                                        <th className="text-left py-3 px-4 text-sm font-semibold text-gray-600">Description</th>
-                                        <th className="text-left py-3 px-4 text-sm font-semibold text-gray-600">Category</th>
-                                        <th className="text-left py-3 px-4 text-sm font-semibold text-gray-600">Status</th>
-                                        <th className="text-right py-3 px-4 text-sm font-semibold text-gray-600">Amount</th>
-                                        <th className="text-right py-3 px-4 text-sm font-semibold text-gray-600">Actions</th>
-                                    </tr>
-                                </thead>
-                                <tbody className="divide-y divide-gray-50">
-                                    {filteredHistory.map(expense => (
-                                        <tr key={expense.id} className="group hover:bg-gray-50 transition-colors">
-                                            <td className="py-3 px-4 text-gray-600 font-bold">{new Date(expense.date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}</td>
-                                            <td className="py-3 px-4 font-medium text-gray-900">{expense.site_name || 'N/A'}</td>
-                                            <td className="py-3 px-4 text-gray-800 font-medium">
-                                                {expense.vendor_name ? (
-                                                    <span className="text-blue-600">{expense.vendor_name}</span>
-                                                ) : expense.worker_name ? (
-                                                    <span className="text-gray-800 font-bold">{expense.worker_name}</span>
-                                                ) : '-'}
-                                            </td>
-                                            <td className="py-3 px-4 text-gray-800">{expense.description}</td>
-                                            <td className="py-3 px-4 text-gray-600">
-                                                <span className="px-2 py-1 bg-yellow-50 text-yellow-700 rounded-md text-xs font-medium">{expense.category}</span>
-                                            </td>
-                                            <td className="py-3 px-4">
-                                                {expense.is_paid ? (
-                                                    <span className="px-2 py-1 bg-green-50 text-green-700 rounded-md text-[10px] font-bold uppercase tracking-wider">Paid</span>
-                                                ) : (
-                                                    <span className="px-2 py-1 bg-amber-50 text-amber-700 rounded-md text-[10px] font-bold uppercase tracking-wider">Unpaid</span>
-                                                )}
-                                            </td>
-                                            <td className="py-3 px-4 text-right font-bold text-red-600">
-                                                Rs. {Number(expense.amount).toLocaleString()}
-                                            </td>
-                                            <td className="py-3 px-4 text-right">
-                                                <div className="flex gap-2 justify-end">
-                                                    {parseProofUrls(expense.proof_url).map((url, idx) => (
-                                                        <a
-                                                            key={idx}
-                                                            href={url}
-                                                            target="_blank"
-                                                            rel="noopener noreferrer"
-                                                            className="flex items-center justify-center p-2 text-blue-600 hover:bg-blue-50 rounded bg-white shadow-sm border border-blue-100"
-                                                            title={`View Proof ${idx + 1}`}
-                                                        >
-                                                            📎
-                                                        </a>
-                                                    ))}
-                                                    <Button variant="ghost" size="sm" onClick={() => handleEditClick(expense)}>✏️ Edit</Button>
-                                                    <Button
-                                                        variant="secondary"
-                                                        size="sm"
-                                                        className="bg-red-50 text-red-600 hover:bg-red-100 border-red-100"
-                                                        onClick={() => handleDeleteClick(expense.id)}
-                                                    >
-                                                        Delete
-                                                    </Button>
-                                                </div>
-                                            </td>
+                        <div className="overflow-x-auto w-full">
+                            <div className="min-w-max">
+                                <div className="mb-2 text-right w-full pr-4">
+                                    <span className="text-xs font-bold text-gray-400 uppercase">Filtered Total: </span>
+                                    <span className="text-sm font-black text-red-600">Rs. {filteredHistory.reduce((sum, e) => sum + Number(e.amount), 0).toLocaleString()}</span>
+                                </div>
+                                <table className="w-full">
+                                    <thead className="bg-gray-50 border-b border-gray-100">
+                                        <tr>
+                                            <th className="text-left py-3 px-4 text-sm font-semibold text-gray-600">Date</th>
+                                            <th className="text-left py-3 px-4 text-sm font-semibold text-gray-600">Site</th>
+                                            <th className="text-left py-3 px-4 text-sm font-semibold text-gray-600">Vendor / Worker</th>
+                                            <th className="text-left py-3 px-4 text-sm font-semibold text-gray-600">Description</th>
+                                            <th className="text-left py-3 px-4 text-sm font-semibold text-gray-600">Category</th>
+                                            <th className="text-left py-3 px-4 text-sm font-semibold text-gray-600">Status</th>
+                                            <th className="text-right py-3 px-4 text-sm font-semibold text-gray-600">Amount</th>
+                                            <th className="text-right py-3 px-4 text-sm font-semibold text-gray-600">Actions</th>
                                         </tr>
-                                    ))}
-                                </tbody>
-                            </table>
+                                    </thead>
+                                    <tbody className="divide-y divide-gray-50 bg-white">
+                                        {filteredHistory.map(expense => (
+                                            <tr key={expense.id} className="group hover:bg-gray-50 transition-colors whitespace-nowrap">
+                                                <td className="py-3 px-4 text-gray-600 font-bold">{new Date(expense.date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}</td>
+                                                <td className="py-3 px-4 font-medium text-gray-900">{expense.site_name || 'N/A'}</td>
+                                                <td className="py-3 px-4 text-gray-800 font-medium">
+                                                    {expense.vendor_name ? (
+                                                        <span className="text-blue-600">{expense.vendor_name}</span>
+                                                    ) : expense.worker_name ? (
+                                                        <span className="text-gray-800 font-bold">{expense.worker_name}</span>
+                                                    ) : '-'}
+                                                </td>
+                                                <td className="py-3 px-4 text-gray-800">{expense.description}</td>
+                                                <td className="py-3 px-4 text-gray-600">
+                                                    <span className="px-2 py-1 bg-yellow-50 text-yellow-700 rounded-md text-xs font-medium">{expense.category}</span>
+                                                </td>
+                                                <td className="py-3 px-4">
+                                                    {expense.is_paid ? (
+                                                        <span className="px-2 py-1 bg-green-50 text-green-700 rounded-md text-[10px] font-bold uppercase tracking-wider">Paid</span>
+                                                    ) : (
+                                                        <span className="px-2 py-1 bg-amber-50 text-amber-700 rounded-md text-[10px] font-bold uppercase tracking-wider">Unpaid</span>
+                                                    )}
+                                                </td>
+                                                <td className="py-3 px-4 text-right font-bold text-red-600">
+                                                    Rs. {Number(expense.amount).toLocaleString()}
+                                                </td>
+                                                <td className="py-3 px-4 text-right">
+                                                    <div className="flex gap-2 justify-end">
+                                                        {parseProofUrls(expense.proof_url).map((url, idx) => (
+                                                            <a
+                                                                key={idx}
+                                                                href={url}
+                                                                target="_blank"
+                                                                rel="noopener noreferrer"
+                                                                className="flex items-center justify-center p-2 text-blue-600 hover:bg-blue-50 rounded bg-white shadow-sm border border-blue-100"
+                                                                title={`View Proof ${idx + 1}`}
+                                                            >
+                                                                📎
+                                                            </a>
+                                                        ))}
+                                                        <Button variant="ghost" size="sm" onClick={() => handleEditClick(expense)}>✏️ Edit</Button>
+                                                        <Button
+                                                            variant="secondary"
+                                                            size="sm"
+                                                            className="bg-red-50 text-red-600 hover:bg-red-100 border-red-100"
+                                                            onClick={() => handleDeleteClick(expense.id)}
+                                                        >
+                                                            Delete
+                                                        </Button>
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </div>
                         </div>
                     )}
                 </Card>

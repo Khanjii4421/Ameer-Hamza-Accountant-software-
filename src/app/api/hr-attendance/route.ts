@@ -53,11 +53,11 @@ export async function POST(request: Request) {
         const created_at = new Date().toISOString();
 
         const stmt = await db.prepare(`
-            INSERT INTO hr_attendance (id, employee_id, employee_name, date, time_in, time_out, status, is_late, company_id, created_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            INSERT INTO hr_attendance (id, employee_id, employee_name, date, time_in, time_out, status, is_late, company_id, created_at, latitude, longitude, address, image_url)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             RETURNING *
         `);
-        const result = await stmt.get(id, employee_id, employee_name, date, time_in, time_out, status, is_late ? 1 : 0, companyId, created_at);
+        const result = await stmt.get(id, employee_id, employee_name, date, time_in, time_out, status, is_late ? 1 : 0, companyId, created_at, latitude || null, longitude || null, address || null, image_url || null);
         return NextResponse.json(result);
     } catch (error: any) {
         return NextResponse.json({ error: error.message }, { status: 500 });

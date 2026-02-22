@@ -112,6 +112,11 @@ export default function EmployeeDashboard() {
             const dataUrl = canvasRef.current.toDataURL('image/jpeg');
             setCapturedImage(dataUrl);
             stopCamera();
+
+            // Automatically submit after a brief delay so user sees what they captured
+            setTimeout(() => {
+                markAttendance(dataUrl);
+            }, 600);
         }
     };
 
@@ -121,9 +126,10 @@ export default function EmployeeDashboard() {
         setCameraActive(false);
     };
 
-    const markAttendance = async () => {
+    const markAttendance = async (autoImage?: string) => {
         if (!user?.employee_id) return alert('No Employee ID linked to this user Account.');
-        if (!capturedImage) return alert('Please capture a photo.');
+        const finalImage = autoImage || capturedImage;
+        if (!finalImage) return alert('Please capture a photo.');
 
         // Time Check
         const now = new Date();
@@ -135,11 +141,14 @@ export default function EmployeeDashboard() {
 
         const isLate = now > lateThreshold;
 
-        if (!location) return alert('Location not detected. Please enable GPS to mark attendance.');
+        // If location is taking a bit to load, wait for it natively here if possible, but fallback to alert
+        if (!location) {
+            alert('Location not detected yet. Please make sure GPS is enabled and wait a few seconds.');
+            return;
+        }
 
         if (now >= timeLimit) {
             setStatusMessage({ type: 'error', text: 'Absent Mark and Today Absent will be effected on salary' });
-            // Optionally we can still submit as 'Absent' record to DB if required logic dictates
             return;
         }
 
@@ -156,10 +165,13 @@ export default function EmployeeDashboard() {
                 latitude: location.lat,
                 longitude: location.lng,
                 address: `Lat: ${location.lat.toFixed(5)}, Lng: ${location.lng.toFixed(5)}`,
-                image_url: capturedImage
+                image_url: finalImage
             } as any);
 
-            setStatusMessage({ type: 'success', text: 'Attendance Marked Successfully!' });
+            // Pop-up alert for mobile view explicitly
+            alert('Your attendance has been marked today! ✅');
+
+            setStatusMessage({ type: 'success', text: 'Your attendance has been marked today!' });
             loadData(); // Refresh history
         } catch (err: any) {
             setStatusMessage({ type: 'error', text: err.message });
@@ -308,9 +320,14 @@ export default function EmployeeDashboard() {
                                                     <canvas ref={canvasRef} className="hidden" width={640} height={480} />
                                                 </>
                                             ) : (
-                                                <button onClick={startCamera} className="text-slate-400 group-hover:text-indigo-500 transition-all flex flex-col items-center gap-3 active:scale-95">
-                                                    <div className="w-20 h-20 bg-white rounded-full shadow-lg flex items-center justify-center text-4xl mb-2">📸</div>
-                                                    <span className="font-black text-xs uppercase tracking-widest">Tap to Open Camera</span>
+                                                <button onClick={startCamera} className="text-slate-400 group-hover:text-indigo-600 transition-all flex flex-col items-center gap-3 active:scale-95">
+                                                    <div className="w-20 h-20 bg-indigo-50 text-indigo-500 rounded-full shadow-lg flex items-center justify-center mb-2">
+                                                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-10 h-10">
+                                                            <path strokeLinecap="round" strokeLinejoin="round" d="M6.827 6.175A2.31 2.31 0 0 1 5.186 7.23c-.38.054-.757.112-1.134.175C2.999 7.58 2.25 8.507 2.25 9.574V18a2.25 2.25 0 0 0 2.25 2.25h15A2.25 2.25 0 0 0 21.75 18V9.574c0-1.067-.75-1.994-1.802-2.169a47.865 47.865 0 0 0-1.134-.175 2.31 2.31 0 0 1-1.64-1.055l-.822-1.316a2.192 2.192 0 0 0-1.736-1.039 48.774 48.774 0 0 0-5.232 0 2.192 2.192 0 0 0-1.736 1.039l-.821 1.316Z" />
+                                                            <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 12.75a4.5 4.5 0 1 1-9 0 4.5 4.5 0 0 1 9 0ZM18.75 10.5h.008v.008h-.008V10.5Z" />
+                                                        </svg>
+                                                    </div>
+                                                    <span className="font-black text-xs text-indigo-500 uppercase tracking-widest bg-indigo-50 px-3 py-1.5 rounded-full">Tap To Open Camera</span>
                                                 </button>
                                             )}
 
@@ -323,32 +340,24 @@ export default function EmployeeDashboard() {
                                     </div>
 
                                     {capturedImage && (
-                                        <div className="space-y-4 mt-6 animate-fade-in">
-                                            {locationError ? (
+                                        <div className="space-y-4 mt-6 animate-fade-in text-center">
+                                            {locationError && (
                                                 <div className="p-4 bg-red-50 border border-red-100 rounded-2xl flex items-center gap-3">
                                                     <span className="text-2xl">🛑</span>
                                                     <p className="text-xs font-bold text-red-600 uppercase tracking-wide">{locationError}</p>
                                                 </div>
-                                            ) : (
-                                                <div className="p-4 bg-emerald-50 border border-emerald-100 rounded-2xl flex items-center gap-3 shadow-sm">
-                                                    <div className="w-10 h-10 bg-emerald-100 rounded-full flex items-center justify-center text-lg">📍</div>
-                                                    <div>
-                                                        <p className="text-[10px] font-black text-emerald-600 uppercase tracking-widest mb-0.5">Location Verified</p>
-                                                        <p className="text-xs font-bold text-slate-700">{location?.lat.toFixed(6)}, {location?.lng.toFixed(6)}</p>
+                                            )}
+                                            {location && !locationError && (
+                                                <div className="p-4 bg-emerald-50 border border-emerald-100 rounded-2xl flex items-center gap-3 shadow-sm justify-center">
+                                                    <div className="w-8 h-8 bg-emerald-100 rounded-full flex items-center justify-center text-sm">📍</div>
+                                                    <div className="text-left">
+                                                        <p className="text-[10px] font-black text-emerald-600 uppercase tracking-widest">Location Verified</p>
                                                     </div>
                                                 </div>
                                             )}
-
-                                            <div className="grid grid-cols-2 gap-3">
-                                                <button onClick={() => { setCapturedImage(null); setCameraActive(false); }} className="py-4 bg-white border border-slate-200 text-slate-600 rounded-2xl font-black text-xs uppercase tracking-wider hover:bg-slate-50 transition-all shadow-sm">
-                                                    Retake
-                                                </button>
-                                                <button
-                                                    onClick={markAttendance}
-                                                    disabled={loading || !location}
-                                                    className="py-4 bg-slate-900 text-white rounded-2xl font-black text-xs uppercase tracking-wider shadow-lg shadow-slate-900/20 hover:bg-black disabled:opacity-50 disabled:cursor-not-allowed transition-all active:scale-95 flex items-center justify-center gap-2"
-                                                >
-                                                    {loading ? <span className="animate-spin">⏳</span> : <span>Submit Now ✅</span>}
+                                            <div className="flex justify-center gap-3 mt-4">
+                                                <button onClick={() => { setCapturedImage(null); setCameraActive(false); setStatusMessage(null); }} className="px-6 py-2 bg-white border border-slate-200 text-slate-800 rounded-xl font-bold text-xs uppercase hover:bg-slate-50 transition-all shadow-sm">
+                                                    Capture Again
                                                 </button>
                                             </div>
                                         </div>

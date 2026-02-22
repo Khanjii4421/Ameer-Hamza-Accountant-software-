@@ -27,7 +27,8 @@ export const db = {
       all: async (...args: any[]) => {
         try {
           const pgSql = convertSqliteToPg(sql);
-          const result = await pool.query(pgSql, args);
+          const safeArgs = args.map(arg => arg === undefined ? null : arg);
+          const result = await pool.query(pgSql, safeArgs);
           return result.rows;
         } catch (error) {
           console.error('DB query error [all]:', error, 'SQL:', sql);
@@ -37,7 +38,8 @@ export const db = {
       get: async (...args: any[]) => {
         try {
           const pgSql = convertSqliteToPg(sql);
-          const result = await pool.query(pgSql, args);
+          const safeArgs = args.map(arg => arg === undefined ? null : arg);
+          const result = await pool.query(pgSql, safeArgs);
           return result.rows[0];
         } catch (error) {
           console.error('DB query error [get]:', error, 'SQL:', sql);
@@ -47,7 +49,8 @@ export const db = {
       run: async (...args: any[]) => {
         try {
           const pgSql = convertSqliteToPg(sql);
-          const result = await pool.query(pgSql, args);
+          const safeArgs = args.map(arg => arg === undefined ? null : arg);
+          const result = await pool.query(pgSql, safeArgs);
           return {
             changes: result.rowCount,
             lastInsertRowid: undefined // Ignored in Postgres via this wrapper, UUIDs are used mostly anyway

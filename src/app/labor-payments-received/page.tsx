@@ -618,93 +618,95 @@ export default function LaborPaymentsReceivedPage() {
                             </p>
                         </div>
                     ) : (
-                        <div className="overflow-x-auto">
-                            <table className="w-full">
-                                <thead className="bg-gray-50 border-b border-gray-100">
-                                    <tr>
-                                        <th className="text-left py-3 px-4 text-sm font-semibold text-gray-600">Sr.</th>
-                                        <th className="text-left py-3 px-4 text-sm font-semibold text-gray-600">Date</th>
-                                        <th className="text-left py-3 px-4 text-sm font-semibold text-gray-600">Client</th>
-                                        <th className="text-left py-3 px-4 text-sm font-semibold text-gray-600">Project</th>
-                                        <th className="text-left py-3 px-4 text-sm font-semibold text-gray-600">Description</th>
-                                        <th className="text-left py-3 px-4 text-sm font-semibold text-gray-600">Method</th>
-                                        <th className="text-left py-3 px-4 text-sm font-semibold text-gray-600">Details</th>
-                                        <th className="text-right py-3 px-4 text-sm font-semibold text-gray-600">Amount</th>
-                                        {isAdmin && <th className="text-center py-3 px-4 text-sm font-semibold text-gray-600">Actions</th>}
-                                    </tr>
-                                </thead>
-                                <tbody className="divide-y divide-gray-50">
-                                    {filteredPayments.map((payment, index) => (
-                                        <tr key={payment.id} className="group hover:bg-gray-50 transition-colors">
-                                            <td className="py-3 px-4 text-gray-500 font-mono text-xs">{index + 1}</td>
-                                            <td className="py-3 px-4 text-gray-600 font-bold whitespace-nowrap">
-                                                {new Date(payment.date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}
-                                            </td>
-                                            <td className="py-3 px-4 font-medium text-gray-900">{payment.client_name || 'N/A'}</td>
-                                            <td className="py-3 px-4 text-gray-600 text-sm">{payment.project_title || 'N/A'}</td>
-                                            <td className="py-3 px-4 text-gray-800">{payment.description}</td>
-                                            <td className="py-3 px-4">
-                                                <span className="px-2 py-1 bg-blue-100 text-blue-700 rounded text-xs font-medium">
-                                                    {payment.payment_method}
-                                                </span>
-                                            </td>
-                                            <td className="py-3 px-4 text-gray-600 text-sm">
-                                                {payment.transaction_id || payment.cheque_number || '-'}
-                                            </td>
-                                            <td className="py-3 px-4 text-right font-bold text-green-600">
-                                                Rs. {Number(payment.amount).toLocaleString()}
-                                            </td>
-                                            {isAdmin && (
-                                                <td className="py-3 px-4 text-center">
-                                                    <div className="flex items-center justify-center gap-2">
-                                                        {parseProofUrls(payment.proof_url).map((url, idx) => (
-                                                            <a
-                                                                key={idx}
-                                                                href={url}
-                                                                target="_blank"
-                                                                rel="noopener noreferrer"
-                                                                className="flex items-center justify-center p-2 text-blue-600 hover:bg-blue-50 rounded bg-white shadow-sm border border-blue-100"
-                                                                title={`View Proof ${idx + 1}`}
-                                                            >
-                                                                📎
-                                                            </a>
-                                                        ))}
-                                                        <Button
-                                                            variant="ghost"
-                                                            size="sm"
-                                                            title="Edit"
-                                                            onClick={() => handleEdit(payment)}
-                                                            className="text-blue-600 hover:text-blue-700 hover:bg-blue-50"
-                                                        >
-                                                            ✏️
-                                                        </Button>
-                                                        <Button
-                                                            variant="ghost"
-                                                            size="sm"
-                                                            title="Delete"
-                                                            onClick={() => handleDelete(payment.id)}
-                                                            className="text-red-600 hover:text-red-700 hover:bg-red-50"
-                                                        >
-                                                            🗑️
-                                                        </Button>
-                                                    </div>
-                                                </td>
-                                            )}
+                        <div className="overflow-x-auto w-full">
+                            <div className="min-w-max">
+                                <table className="w-full">
+                                    <thead className="bg-gray-50 border-b border-gray-100">
+                                        <tr>
+                                            <th className="text-left py-3 px-4 text-sm font-semibold text-gray-600">Sr.</th>
+                                            <th className="text-left py-3 px-4 text-sm font-semibold text-gray-600">Date</th>
+                                            <th className="text-left py-3 px-4 text-sm font-semibold text-gray-600">Client</th>
+                                            <th className="text-left py-3 px-4 text-sm font-semibold text-gray-600">Project</th>
+                                            <th className="text-left py-3 px-4 text-sm font-semibold text-gray-600">Description</th>
+                                            <th className="text-left py-3 px-4 text-sm font-semibold text-gray-600">Method</th>
+                                            <th className="text-left py-3 px-4 text-sm font-semibold text-gray-600">Details</th>
+                                            <th className="text-right py-3 px-4 text-sm font-semibold text-gray-600">Amount</th>
+                                            {isAdmin && <th className="text-center py-3 px-4 text-sm font-semibold text-gray-600">Actions</th>}
                                         </tr>
-                                    ))}
-                                </tbody>
-                                <tfoot className="bg-gray-100 border-t-2 border-gray-300">
-                                    <tr>
-                                        <td colSpan={7} className="py-3 px-4 text-right font-bold text-gray-900">
-                                            Total Received:
-                                        </td>
-                                        <td className="py-3 px-4 text-right font-bold text-green-600 text-xl">
-                                            Rs. {totalReceived.toLocaleString()}
-                                        </td>
-                                        <td colSpan={isAdmin ? 1 : 0}></td>
-                                    </tr>
-                                </tfoot>
-                            </table>
+                                    </thead>
+                                    <tbody className="divide-y divide-gray-50 bg-white">
+                                        {filteredPayments.map((payment, index) => (
+                                            <tr key={payment.id} className="group hover:bg-gray-50 transition-colors whitespace-nowrap">
+                                                <td className="py-3 px-4 text-gray-500 font-mono text-xs">{index + 1}</td>
+                                                <td className="py-3 px-4 text-gray-600 font-bold whitespace-nowrap">
+                                                    {new Date(payment.date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}
+                                                </td>
+                                                <td className="py-3 px-4 font-medium text-gray-900">{payment.client_name || 'N/A'}</td>
+                                                <td className="py-3 px-4 text-gray-600 text-sm">{payment.project_title || 'N/A'}</td>
+                                                <td className="py-3 px-4 text-gray-800">{payment.description}</td>
+                                                <td className="py-3 px-4">
+                                                    <span className="px-2 py-1 bg-blue-100 text-blue-700 rounded text-xs font-medium">
+                                                        {payment.payment_method}
+                                                    </span>
+                                                </td>
+                                                <td className="py-3 px-4 text-gray-600 text-sm">
+                                                    {payment.transaction_id || payment.cheque_number || '-'}
+                                                </td>
+                                                <td className="py-3 px-4 text-right font-bold text-green-600">
+                                                    Rs. {Number(payment.amount).toLocaleString()}
+                                                </td>
+                                                {isAdmin && (
+                                                    <td className="py-3 px-4 text-center">
+                                                        <div className="flex items-center justify-center gap-2">
+                                                            {parseProofUrls(payment.proof_url).map((url, idx) => (
+                                                                <a
+                                                                    key={idx}
+                                                                    href={url}
+                                                                    target="_blank"
+                                                                    rel="noopener noreferrer"
+                                                                    className="flex items-center justify-center p-2 text-blue-600 hover:bg-blue-50 rounded bg-white shadow-sm border border-blue-100"
+                                                                    title={`View Proof ${idx + 1}`}
+                                                                >
+                                                                    📎
+                                                                </a>
+                                                            ))}
+                                                            <Button
+                                                                variant="ghost"
+                                                                size="sm"
+                                                                title="Edit"
+                                                                onClick={() => handleEdit(payment)}
+                                                                className="text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+                                                            >
+                                                                ✏️
+                                                            </Button>
+                                                            <Button
+                                                                variant="ghost"
+                                                                size="sm"
+                                                                title="Delete"
+                                                                onClick={() => handleDelete(payment.id)}
+                                                                className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                                                            >
+                                                                🗑️
+                                                            </Button>
+                                                        </div>
+                                                    </td>
+                                                )}
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                    <tfoot className="bg-gray-100 border-t-2 border-gray-300">
+                                        <tr>
+                                            <td colSpan={7} className="py-3 px-4 text-right font-bold text-gray-900">
+                                                Total Received:
+                                            </td>
+                                            <td className="py-3 px-4 text-right font-bold text-green-600 text-xl">
+                                                Rs. {totalReceived.toLocaleString()}
+                                            </td>
+                                            <td colSpan={isAdmin ? 1 : 0}></td>
+                                        </tr>
+                                    </tfoot>
+                                </table>
+                            </div>
                         </div>
                     )}
                 </Card>
