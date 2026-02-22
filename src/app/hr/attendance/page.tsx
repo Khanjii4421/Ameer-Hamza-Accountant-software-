@@ -453,6 +453,69 @@ export default function AttendancePage() {
                             </table>
                         </div>
                     </Card>
+                    {/* ═══════════════════════════════════════════════════════════
+                    SECTION 5 — MONTHLY ATTENDANCE HISTORY
+                ═══════════════════════════════════════════════════════════ */}
+                    <div>
+                        <div className="flex items-center justify-between mb-3 mt-8">
+                            <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">🕒 Monthly History</p>
+                            <span className="px-2.5 py-1 bg-black text-white text-[10px] font-black rounded-lg">
+                                {allMonthAttendance.length} Records
+                            </span>
+                        </div>
+
+                        <Card className="bg-white/80 backdrop-blur-xl border border-black/8 shadow-lg rounded-2xl overflow-hidden">
+                            <div className="overflow-x-auto max-h-[500px]">
+                                <table className="w-full text-xs">
+                                    <thead className="sticky top-0 bg-slate-50 border-b border-slate-100 z-10">
+                                        <tr className="text-[9px] font-black uppercase tracking-widest text-slate-400">
+                                            <th className="px-4 py-3 text-left">Date</th>
+                                            <th className="px-4 py-3 text-left">Employee</th>
+                                            <th className="px-4 py-3 text-center">Time In</th>
+                                            <th className="px-4 py-3 text-center">Status</th>
+                                            <th className="px-4 py-3 text-center">Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody className="divide-y divide-slate-50">
+                                        {allMonthAttendance.length === 0 ? (
+                                            <tr>
+                                                <td colSpan={5} className="py-16 text-center text-slate-300">
+                                                    <div className="text-4xl mb-2">📅</div>
+                                                    <p className="text-xs font-black uppercase tracking-widest">No attendance records this month</p>
+                                                </td>
+                                            </tr>
+                                        ) : allMonthAttendance.map(att => (
+                                            <tr key={att.id} className="hover:bg-slate-50/80 transition-colors">
+                                                <td className="px-4 py-3 font-semibold text-slate-600">{fmtDate(att.date)}</td>
+                                                <td className="px-4 py-3 font-black text-slate-800">{att.employee_name}</td>
+                                                <td className="px-4 py-3 text-center text-slate-600 font-mono">{att.time_in || '—'}</td>
+                                                <td className="px-4 py-3 text-center">
+                                                    <div className="flex flex-col items-center gap-1">
+                                                        <span className={`px-2 py-0.5 rounded-md text-[9px] font-black uppercase ${att.status === 'Present' ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-700'}`}>
+                                                            {att.status}
+                                                        </span>
+                                                        {att.is_late === 1 && (
+                                                            <span className="px-2 py-0.5 bg-amber-100 text-amber-700 rounded-md text-[9px] font-black uppercase">Late</span>
+                                                        )}
+                                                    </div>
+                                                </td>
+                                                <td className="px-4 py-3">
+                                                    <div className="flex items-center justify-center">
+                                                        <button
+                                                            onClick={() => deleteAttendance(att.id, att.employee_name || '')}
+                                                            title="Delete record"
+                                                            className="w-7 h-7 flex items-center justify-center rounded-lg bg-red-50 hover:bg-red-100 text-red-500 text-xs transition-all"
+                                                        >🗑</button>
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </Card>
+                    </div>
+
                 </div>
 
             </div>

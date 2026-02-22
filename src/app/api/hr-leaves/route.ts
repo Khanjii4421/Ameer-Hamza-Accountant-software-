@@ -5,7 +5,6 @@ import { v4 as uuidv4 } from 'uuid';
 export async function GET(request: Request) {
     try {
         let companyId = request.headers.get('X-Company-ID');
-        // Removed company ID requirement
         if (!companyId) companyId = 'default-company';
 
         const url = new URL(request.url);
@@ -30,7 +29,6 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
     try {
         let companyId = request.headers.get('X-Company-ID');
-        // Removed company ID requirement
         if (!companyId) companyId = 'default-company';
 
         const body = await request.json();
@@ -46,12 +44,11 @@ export async function POST(request: Request) {
             ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         `);
 
-        leaveInsert.run(
+        await leaveInsert.run(
             id, employee_id, employee_name, from_date, to_date, reason,
             'Pending', days_count, companyId, created_at, leave_type || 'Full'
         );
 
-        // Create Notification for Admin
         try {
             const notifId = uuidv4();
             await db.prepare(`
@@ -79,17 +76,10 @@ export async function POST(request: Request) {
 export async function PUT(request: Request) {
     try {
         let companyId = request.headers.get('X-Company-ID');
-        // Removed company ID requirement
         if (!companyId) companyId = 'default-company';
 
         const url = new URL(request.url);
-        const id = url.pathname.split('/').pop(); // Extract ID logic if dynamic route used, but this is a static route for PUT/collection? No.
-        // Usually PUT is sent to /api/hr-leaves/[id]/route.ts
-        // Since I'm creating /api/hr-leaves/route.ts, I can only update collections or need to parse ID from Body or Query.
-        // Wait, standard Next.js App Router for specific resource needs [id] folder.
-        // I should have created src/app/api/hr-leaves/[id]/route.ts for PUT/DELETE.
-        // But for simplicity/speed in this one-shot, I can check if I can handle it here or if I should create the folder.
-        // I'll create the folder structure properly now.
+        const id = url.pathname.split('/').pop();
         return NextResponse.json({ error: 'Use /api/hr-leaves/[id] endpoint' }, { status: 405 });
     } catch (e: any) { return NextResponse.json({ error: e.message }, { status: 500 }); }
 }

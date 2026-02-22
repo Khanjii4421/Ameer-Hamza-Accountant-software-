@@ -16,8 +16,8 @@ export async function GET(request: Request) {
         const params: any[] = [companyId];
 
         if (month) {
-            query += ` AND strftime('%Y-%m', date) = ?`;
-            params.push(month);
+            query += ` AND date LIKE ?`;
+            params.push(month + '%');
         }
         if (employeeId) {
             query += ` AND employee_id = ?`;
