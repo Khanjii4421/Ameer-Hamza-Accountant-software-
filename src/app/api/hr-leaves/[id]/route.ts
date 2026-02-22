@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { v4 as uuidv4 } from 'uuid';
 
-export async function PUT(request: Request, { params }: { params: { id: string } }) {
+export async function PUT(request: Request, { params }: { params: Promise<{ id: string }> }) {
     try {
         let companyId = request.headers.get('X-Company-ID');
         // if (!companyId) return NextResponse.json({ error: 'Company ID required' }, { status: 400 });
@@ -10,7 +10,7 @@ export async function PUT(request: Request, { params }: { params: { id: string }
 
         const body = await request.json();
         const { status } = body; // 'Approved' | 'Rejected'
-        const id = params.id;
+        const { id } = await params;
 
         // ✅ FIX: Use .run() first, then .get() to avoid JSON serialization issues
         await db.prepare(`UPDATE hr_leaves SET status = ? WHERE id = ? AND company_id = ?`).run(status, id, companyId);
@@ -47,13 +47,13 @@ export async function PUT(request: Request, { params }: { params: { id: string }
     }
 }
 
-export async function DELETE(request: Request, { params }: { params: { id: string } }) {
+export async function DELETE(request: Request, { params }: { params: Promise<{ id: string }> }) {
     try {
         let companyId = request.headers.get('X-Company-ID');
         // if (!companyId) return NextResponse.json({ error: 'Company ID required' }, { status: 400 });
         if (!companyId) companyId = 'default-company';
 
-        const id = params.id;
+        const { id } = await params;
         await db.prepare('DELETE FROM hr_leaves WHERE id = ? AND company_id = ?').run(id, companyId);
         return NextResponse.json({ success: true });
     } catch (error: any) {

@@ -1,46 +1,34 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 
-export async function GET(req: NextRequest, { params }: { params: { id: string } }) {
+export async function GET(req: NextRequest) {
     try {
-        const document = await db.prepare(`
-            SELECT * FROM hr_leave_applications WHERE id = ?
-        `).get(params.id);
+        const documents = await db.prepare(`
+            SELECT * FROM hr_leave_applications 
+            ORDER BY created_at DESC
 
-        if (!document) {
-            return NextResponse.json({ error: 'Not found' }, { status: 404 });
-        }
 
-        return NextResponse.json(document);
+        `).all();
+        return NextResponse.json(documents);
     } catch (error: any) {
-        console.error('Error fetching leave application:', error);
+        console.error('Error fetching leave applications:', error);
         return NextResponse.json({ error: error.message }, { status: 500 });
     }
 }
 
-export async function PUT(
-    req: NextRequest,
-    { params }: { params: { id: string } }
-) {
+export async function POST(req: NextRequest) {
     try {
         const data = await req.json();
 
-        await db.prepare(`
-            UPDATE hr_leave_applications SET
-                employee_name = ?,
-                designation = ?,
-                department = ?,
-                leave_type = ?,
-                start_date = ?,
-                end_date = ?,
-                total_days = ?,
-                reason = ?,
-                contact_number = ?,
-                contact_number_2 = ?,
-                backup_person = ?,
-                application_date = ?
-            WHERE id = ?
+        const result = await db.prepare(`
+            INSERT INTO hr_leave_applications (
+                id, employee_name, designation, department, leave_type,
+                start_date, end_date, total_days, reason,
+                contact_number, contact_number_2, backup_person,
+                application_date, company_id, created_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))
         `).run(
+            crypto.randomUUID(),
             data.employee_name,
             data.designation,
             data.department || '',
@@ -53,25 +41,16 @@ export async function PUT(
             data.contact_number_2 || '',
             data.backup_person || '',
             data.application_date,
-            params.id
+            'default-company' // TODO: Get from session
         );
 
-        return NextResponse.json({ success: true, message: 'Leave application updated successfully' });
+        return NextResponse.json({
+            success: true,
+            id: result.lastInsertRowid,
+            message: 'Leave application saved successfully'
+        });
     } catch (error: any) {
-        console.error('Error updating leave application:', error);
-        return NextResponse.json({ error: error.message }, { status: 500 });
-    }
-}
-
-export async function DELETE(
-    req: NextRequest,
-    { params }: { params: { id: string } }
-) {
-    try {
-        await db.prepare(`DELETE FROM hr_leave_applications WHERE id = ?`).run(params.id);
-        return NextResponse.json({ success: true, message: 'Leave application deleted successfully' });
-    } catch (error: any) {
-        console.error('Error deleting leave application:', error);
+        console.error('Error saving leave application:', error);
         return NextResponse.json({ error: error.message }, { status: 500 });
     }
 }
