@@ -14,7 +14,7 @@ async function test() {
         try {
             const likeRows = await db.prepare('SELECT * FROM hr_attendance WHERE date LIKE ?').all(month + '%');
             console.log("LIKE result size:", likeRows.length);
-        } catch (e) {
+        } catch (e: any) {
             console.error("LIKE query error:", e.message);
         }
     }

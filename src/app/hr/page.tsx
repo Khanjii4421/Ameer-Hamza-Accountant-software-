@@ -128,6 +128,18 @@ export default function HRPage() {
                     </Card>
                 </Link>
 
+                <Link href="/hr/agreements">
+                    <Card className="hover:border-blue-500 cursor-pointer h-full border border-gray-200 shadow-sm hover:shadow-md transition-all">
+                        <div className="flex flex-col items-center justify-center p-6 text-center space-y-4">
+                            <div className="p-4 bg-blue-50 rounded-full text-4xl">
+                                🤝
+                            </div>
+                            <h3 className="text-xl font-bold text-gray-800">Company Agreements</h3>
+                            <p className="text-gray-500">Create, save, and print agreements for clients and scope of work.</p>
+                        </div>
+                    </Card>
+                </Link>
+
             </div>
         </div>
     );

@@ -45,8 +45,19 @@ export const Sidebar = () => {
             name: 'HR',
             icon: '👔',
             submenu: [
+                { name: 'Dashboard', href: '/hr' },
                 { name: 'Payroll', href: '/hr/payroll' },
                 { name: 'Attendance', href: '/hr/attendance' },
+                { name: 'File Record Checklist', href: '/hr/file-record' },
+                { name: 'Joining Report', href: '/hr/joining-report' },
+                { name: 'Bio Data Form', href: '/hr/bio-data' },
+                { name: 'ID Card App.', href: '/hr/id-card-application' },
+                { name: 'Bike Issuance', href: '/hr/bike-issuance' },
+                { name: 'Leave Application', href: '/hr/leave-application' },
+                { name: 'Resignation Letter', href: '/hr/resignation-letter' },
+                { name: 'Appreciation Letter', href: '/hr/appreciation-letter' },
+                { name: 'Company Agreements', href: '/hr/agreements' },
+                { name: 'Saved Documents', href: '/hr/documents' },
                 { name: 'Announcements', href: '/hr/announcements' }
             ]
         },

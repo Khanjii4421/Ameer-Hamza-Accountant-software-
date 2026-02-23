@@ -269,6 +269,18 @@ export interface HRBikeIssuance {
     created_at: string;
 }
 
+export interface HRAgreement {
+    id: string;
+    title: string;
+    party_one_name: string;
+    party_one_details: string;
+    scope_of_work: string[];
+    rates_of_work: string[];
+    payment_schedule: string[];
+    company_id: string;
+    created_at: string;
+}
+
 export interface HREmployee {
     id: string;
     employee_id_str?: string;
@@ -593,6 +605,13 @@ export const api = {
         getAll: () => request<HRBikeIssuance[]>('/api/hr-bike-issuance'),
         add: (record: Omit<HRBikeIssuance, 'id' | 'company_id' | 'created_at'>) => request<HRBikeIssuance>('/api/hr-bike-issuance', 'POST', record),
         delete: (id: string) => request<void>(`/api/hr-bike-issuance/${id}`, 'DELETE')
+    },
+
+    // 14a. HR Agreements
+    hrAgreements: {
+        getAll: () => request<HRAgreement[]>('/api/hr-agreements'),
+        add: (record: Omit<HRAgreement, 'id' | 'company_id' | 'created_at'>) => request<HRAgreement>('/api/hr-agreements', 'POST', record),
+        delete: (id: string) => request<void>(`/api/hr-agreements/${id}`, 'DELETE')
     },
 
     // 15. HR Employees (Payroll)

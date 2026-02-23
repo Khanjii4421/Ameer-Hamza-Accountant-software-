@@ -1578,4 +1578,220 @@ export const generateAppreciationLetterPDF = async (data: any, profile: any, sho
     await saveOrMergePDF(doc, profile, `Appreciation_${data.employee_name.replace(/\s+/g, '_')}.pdf`);
 };
 
+export const generateAgreementPDF = async (data: any, profile: any, language: 'en' | 'ur' = 'en', showStamp: boolean = false) => {
+    try {
+        const doc = new jsPDF();
+        const isUrdu = language === 'ur';
+        const pageWidth = doc.internal.pageSize.getWidth();
 
+        // drawSharedLetterhead returns the Y position where we should start content.
+        let yPos = await drawSharedLetterhead(doc, profile, undefined, undefined, undefined);
+        yPos += 5; // Less padding for more vertical space
+
+        // 1. Title Wrapping
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(16);
+        const titleText = data.title.toUpperCase();
+        const splitTitle = doc.splitTextToSize(titleText, 180);
+        doc.text(splitTitle, pageWidth / 2, yPos, { align: "center" });
+        yPos += splitTitle.length * 7 + 8;
+
+        // 2. Two Column Layout for Clients
+        const leftX = 15;
+        const rightX = 110;
+
+        doc.setFontSize(12);
+        doc.setFont("helvetica", "bold");
+        doc.setTextColor(0, 0, 0);
+
+        const p1Label = isUrdu ? "Fareeq 1 (Client 1):" : "Client 1:";
+        doc.text(p1Label, leftX, yPos);
+
+        const p2Label = isUrdu ? "Fareeq 2 (Client 2):" : "Client 2:";
+        doc.text(p2Label, rightX, yPos);
+
+        yPos += 6;
+
+        doc.setFontSize(11);
+
+        // Client 1 Name
+        doc.setFont("helvetica", "bold");
+        const p1NameLines = doc.splitTextToSize(data.party_one_name, 85);
+        doc.text(p1NameLines, leftX, yPos);
+
+        // Client 2 Name (Company Name)
+        const companyName = profile.name || "Miran Builders Engineering & Construction";
+        const p2NameLines = doc.splitTextToSize(companyName, 85);
+        doc.text(p2NameLines, rightX, yPos);
+
+        let currentYLeft = yPos + p1NameLines.length * 5 + 2;
+        let currentYRight = yPos + p2NameLines.length * 5 + 2;
+
+        doc.setFont("helvetica", "normal");
+        doc.setFontSize(10);
+
+        // Client 1 Details
+        const p1DetailsLines = doc.splitTextToSize(data.party_one_details || "", 85);
+        doc.text(p1DetailsLines, leftX, currentYLeft);
+        currentYLeft += p1DetailsLines.length * 5;
+
+        // Client 2 Details (Company Address & Phone)
+        const p2Address = profile.address || "Address: 386-A, LDA Avenue One Scheme, Raiwind Road, Lahore";
+        const p2Phone = profile.phone || "Phone: +92321-9300005";
+
+        const p2AddrLines = doc.splitTextToSize(p2Address, 85);
+        doc.text(p2AddrLines, rightX, currentYRight);
+        currentYRight += p2AddrLines.length * 5;
+        doc.text(p2Phone, rightX, currentYRight);
+        currentYRight += 5;
+
+        yPos = Math.max(currentYLeft, currentYRight) + 12;
+
+        // Colors setup
+        const THEME_BG = [240, 244, 248]; // Light elegant grey/blue (looks professional/glass)
+        const THEME_TEXT = [15, 23, 42]; // Slate 900
+        const NUMBER_COLORS = [
+            [37, 99, 235],  // Blue
+            [220, 38, 38],  // Red
+            [22, 163, 74],  // Green
+            [202, 138, 4],  // Gold/Yellow
+            [147, 51, 234], // Purple
+            [234, 88, 12],  // Orange
+            [13, 148, 136]  // Teal
+        ];
+
+        // 3. Helper to draw sections with background and colored numbers
+        const drawSection = (title: string, items: string[]) => {
+            // Check page break for section header
+            if (yPos > 255) {
+                doc.addPage();
+                yPos = 20;
+            }
+
+            // Background Box for Heading
+            doc.setFillColor(THEME_BG[0], THEME_BG[1], THEME_BG[2]);
+            doc.rect(leftX, yPos, 180, 10, 'F');
+
+            doc.setFontSize(12);
+            doc.setFont("helvetica", "bold");
+            doc.setTextColor(THEME_TEXT[0], THEME_TEXT[1], THEME_TEXT[2]);
+            // text in center of the box
+            doc.text(title, pageWidth / 2, yPos + 7, { align: "center" });
+            yPos += 16; // Shift down for the content below
+
+            doc.setFont("helvetica", "normal");
+            doc.setFontSize(11);
+            doc.setTextColor(0, 0, 0); // Reset text color to black
+
+            if (!items || items.length === 0) {
+                doc.text("No details defined.", leftX + 5, yPos);
+                yPos += 8;
+            } else {
+                items.forEach((item: string, index: number) => {
+                    const lineSpacing = 6;
+
+                    // The number color
+                    const numColor = NUMBER_COLORS[index % NUMBER_COLORS.length];
+
+                    // Measure the bullet text width
+                    const numText = `${index + 1}. `;
+                    const numWidth = doc.getTextWidth(numText);
+
+                    // Split actual text using remaining width
+                    const splitLines = doc.splitTextToSize(item, 170 - numWidth);
+
+                    // Check page break before rendering this item
+                    if (yPos + splitLines.length * lineSpacing > 275) {
+                        doc.addPage();
+                        yPos = 20;
+                    }
+
+                    // Print Number (Colored & Bold)
+                    doc.setTextColor(numColor[0], numColor[1], numColor[2]);
+                    doc.setFont("helvetica", "bold");
+                    if (isUrdu) {
+                        // Urdu text alignment styling just by appending . at end
+                        const uNum = `${item} .${index + 1}`;
+                        const urSplit = doc.splitTextToSize(uNum, 170);
+                        doc.text(urSplit, pageWidth - 15, yPos, { align: "right" } as any);
+                        yPos += urSplit.length * lineSpacing + 3;
+                    } else {
+                        doc.text(numText, leftX + 5, yPos);
+
+                        // Print Text (Black & Normal)
+                        doc.setTextColor(0, 0, 0);
+                        doc.setFont("helvetica", "normal");
+                        doc.text(splitLines, leftX + 5 + numWidth, yPos);
+                        yPos += splitLines.length * lineSpacing + 3;
+                    }
+                });
+            }
+            yPos += 6; // Padding after section
+        };
+
+        // Render Sections
+        const sowLabel = isUrdu ? "Kam ki Tafseel (Scope of Work):" : "Scope of Work:";
+        drawSection(sowLabel, data.scope_of_work);
+
+        const ratesLabel = isUrdu ? "Kam kay Rates (Rates of Work):" : "Rates of Work:";
+        drawSection(ratesLabel, data.rates_of_work);
+
+        const paymentLabel = isUrdu ? "Payment Schedule:" : "Payment Schedule:";
+        drawSection(paymentLabel, data.payment_schedule);
+
+        // 4. Space for Signatures and Thumbs
+        yPos = Math.max(yPos + 25, 230); // push it down a bit but ensure it stays grouped
+        if (yPos > 265) {
+            doc.addPage();
+            yPos = 230; // Better bottom placement for signatures on new page
+        }
+
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(10);
+        doc.setTextColor(0, 0, 0);
+
+        const sig1Label = isUrdu ? "Client 1 Signature/Thumb" : "Client 1 Signature/Thumb";
+        const sig2Label = isUrdu ? "Client 2 Signature/Thumb" : "Client 2 Signature/Thumb";
+
+        // Draw Signature Blocks
+        // Client 1 (Left side)
+        doc.text("_______________________", 20, yPos);
+        doc.text("_______________________", 20, yPos + 15);
+
+        doc.setFont("helvetica", "normal");
+        doc.setFontSize(9);
+        doc.text("Signature", 20, yPos + 5);
+        doc.text("Thumb", 20, yPos + 20);
+        doc.setFont("helvetica", "bold");
+        doc.text(sig1Label, 20, yPos + 28);
+
+        // Client 2 (Right side)
+        doc.text("_______________________", 130, yPos);
+        doc.text("_______________________", 130, yPos + 15);
+
+        doc.setFont("helvetica", "normal");
+        doc.text("Signature", 130, yPos + 5);
+        doc.text("Thumb", 130, yPos + 20);
+        doc.setFont("helvetica", "bold");
+        doc.text(sig2Label, 130, yPos + 28);
+
+        // Stamp
+        if (showStamp && profile?.stamp_url) {
+            try {
+                const stampBase64 = await getBase64ImageFromURL(profile.stamp_url);
+                const stampFormat = getImageFormat(stampBase64);
+                // Center stamp at Client 2 Signature area
+                doc.addImage(stampBase64, stampFormat, 140, yPos - 25, 30, 30);
+            } catch (error) {
+                console.error("Error adding stamp image:", error);
+            }
+        }
+
+        const titleStr = data.title.replace(/[^a-zA-Z0-9]/g, '_').substring(0, 30);
+        const langStr = language.toUpperCase();
+        await saveOrMergePDF(doc, profile, `Agreement_${titleStr}_${langStr}.pdf`);
+    } catch (error) {
+        console.error("Error generating Agreement PDF:", error);
+        throw error;
+    }
+};
