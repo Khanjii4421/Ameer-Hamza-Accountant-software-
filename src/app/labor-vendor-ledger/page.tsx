@@ -46,6 +46,8 @@ export default function LaborVendorLedgerPage() {
     const [sites, setSites] = useState<Project[]>([]);
     const [profile, setProfile] = useState<CompanyProfile | null>(null);
     const [loading, setLoading] = useState(true);
+    // New filter for employee/worker
+    const [selectedWorker, setSelectedWorker] = useState<string>('');
 
     // Filter states
     const [selectedVendor, setSelectedVendor] = useState<string>('');
@@ -53,6 +55,7 @@ export default function LaborVendorLedgerPage() {
     const [selectedCategory, setSelectedCategory] = useState<string>('');
     const [startDate, setStartDate] = useState<string>('');
     const [endDate, setEndDate] = useState<string>('');
+    // Worker filter state already added above
 
     // Transaction modal (Add/Edit)
     const [transactionModal, setTransactionModal] = useState(false);
@@ -119,8 +122,16 @@ export default function LaborVendorLedgerPage() {
             filtered = filtered.filter(e => e.vendor_id === selectedVendor);
         }
 
+        if (selectedWorker) {
+            filtered = filtered.filter(e => e.worker_name === selectedWorker);
+        }
+
         if (selectedSite) {
             filtered = filtered.filter(e => e.site_id === selectedSite);
+        }
+
+        if (selectedCategory) {
+            filtered = filtered.filter(e => e.category === selectedCategory);
         }
 
         if (startDate) {
@@ -133,7 +144,7 @@ export default function LaborVendorLedgerPage() {
 
         // Sort by date ascending for running balance calculation
         return filtered.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
-    }, [expenses, selectedVendor, selectedSite, selectedCategory, startDate, endDate]);
+    }, [expenses, selectedVendor, selectedWorker, selectedSite, selectedCategory, startDate, endDate]);
 
     // Calculate running balance (negative for liability)
     const expensesWithBalance = useMemo(() => {
@@ -528,6 +539,7 @@ export default function LaborVendorLedgerPage() {
                                 onChange={(e) => {
                                     setSelectedCategory(e.target.value);
                                     setSelectedVendor('');
+                                    setSelectedWorker('');
                                 }}
                             >
                                 <option value="">All Categories</option>
@@ -538,15 +550,33 @@ export default function LaborVendorLedgerPage() {
                         </div>
 
                         <div className="md:col-span-1">
-                            <label className="block text-sm font-medium text-gray-700 mb-1.5">Vendor / Worker</label>
+                            <label className="block text-sm font-medium text-gray-700 mb-1.5">Vendor</label>
                             <select
                                 className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-primary outline-none"
                                 value={selectedVendor}
-                                onChange={(e) => setSelectedVendor(e.target.value)}
+                                onChange={(e) => {
+                                    setSelectedVendor(e.target.value);
+                                    setSelectedWorker('');
+                                }}
                             >
                                 <option value="">Select Vendor</option>
                                 {filteredVendors.map(vendor => (
                                     <option key={vendor.id} value={vendor.id}>{vendor.name}</option>
+                                ))}
+                            </select>
+                        </div>
+
+                        <div className="md:col-span-1">
+                            <label className="block text-sm font-medium text-gray-700 mb-1.5">Worker / Employee</label>
+                            <select
+                                className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-primary outline-none"
+                                value={selectedWorker}
+                                onChange={(e) => setSelectedWorker(e.target.value)}
+                            >
+                                <option value="">All Workers</option>
+                                {/* Populate distinct workers from expenses */}
+                                {Array.from(new Set(expenses.map(e => e.worker_name).filter(Boolean))).map(w => (
+                                    <option key={w} value={w}>{w}</option>
                                 ))}
                             </select>
                         </div>
@@ -689,6 +719,7 @@ export default function LaborVendorLedgerPage() {
                                         <th>Site</th>
                                         <th>Description</th>
                                         <th className="text-right">Amount</th>
+                                        <th>Worker</th>
                                         <th className="text-right">Balance</th>
                                         {isAdmin && <th className="text-center">Actions</th>}
                                     </tr>
@@ -705,6 +736,7 @@ export default function LaborVendorLedgerPage() {
                                             <td className="text-right font-bold text-red-600">
                                                 Rs. {Number(expense.amount).toLocaleString()}
                                             </td>
+                                            <td>{expense.worker_name || '—'}</td>
                                             <td className="text-right font-bold text-slate-900">
                                                 Rs. {expense.runningBalance.toLocaleString()}
                                             </td>
