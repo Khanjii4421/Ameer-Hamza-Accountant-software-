@@ -264,6 +264,109 @@ export default function LaborVendorLedgerPage() {
         setTransactionModal(false);
     };
 
+    const handleExcelUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file || !selectedVendor) {
+            alert('Please select a vendor first and choose a file');
+            return;
+        }
+
+        try {
+            const XLSX = await import('xlsx');
+            const data = await file.arrayBuffer();
+            const workbook = XLSX.read(data, { type: 'array' });
+            const sheet = workbook.Sheets[workbook.SheetNames[0]];
+            const jsonData = XLSX.utils.sheet_to_json<any>(sheet, { raw: false });
+
+            if (!jsonData || jsonData.length === 0) {
+                alert('No data found in Excel file');
+                return;
+            }
+
+            let successCount = 0;
+            let errorCount = 0;
+
+            for (const row of jsonData) {
+                try {
+                    const getVal = (keyStr: string) => {
+                        const key = Object.keys(row).find(k => k.toLowerCase().includes(keyStr.toLowerCase()));
+                        return key ? row[key] : undefined;
+                    };
+
+                    const rowDate = getVal('date');
+                    const rowSite = getVal('site');
+                    const rowDesc = getVal('description') || getVal('desc');
+                    const rowAmount = getVal('amount');
+
+                    if (!rowDate || !rowDesc || !rowAmount) {
+                        console.warn('Skipping invalid row', row);
+                        errorCount++;
+                        continue;
+                    }
+
+                    // Format Date
+                    let formattedDate = new Date().toISOString().split('T')[0];
+                    const d = new Date(rowDate);
+                    if (!isNaN(d.getTime())) {
+                        formattedDate = d.toISOString().split('T')[0];
+                    }
+
+                    // Clean amount
+                    const amountStr = String(rowAmount).replace(/[^0-9.-]+/g, '');
+                    const amount = parseFloat(amountStr);
+                    if (isNaN(amount)) {
+                        console.warn('Skipping row, invalid amount', row);
+                        errorCount++;
+                        continue;
+                    }
+
+                    // Match site
+                    let matchedSiteId = selectedSite; // fallback to selected
+                    if (rowSite) {
+                        const s = sites.find(s => s.title.toLowerCase().trim() === String(rowSite).toLowerCase().trim());
+                        if (s) {
+                            matchedSiteId = s.id;
+                        } else if (!matchedSiteId) {
+                            console.warn('Skipping row, site not found', row);
+                            errorCount++;
+                            continue;
+                        }
+                    } else if (!matchedSiteId) {
+                        console.warn('Skipping row, no site specified', row);
+                        errorCount++;
+                        continue;
+                    }
+
+                    await api.laborExpenses.add({
+                        vendor_id: selectedVendor,
+                        site_id: matchedSiteId,
+                        category: selectedCategory || selectedVendorInfo?.category || 'General',
+                        amount: amount,
+                        description: String(rowDesc),
+                        date: formattedDate,
+                        is_paid: false,
+                        proof_url: ''
+                    });
+                    successCount++;
+                } catch (error) {
+                    console.error('Error adding row', error);
+                    errorCount++;
+                }
+            }
+
+            alert(`Upload Complete. Successfully added: ${successCount} entries. Failed/Skipped: ${errorCount}`);
+            if (successCount > 0) {
+                await loadData();
+            }
+
+        } catch (error) {
+            console.error('Excel upload error:', error);
+            alert('Failed to process Excel file');
+        } finally {
+            // Reset file input
+            e.target.value = '';
+        }
+    };
 
 
     const handleDownloadPDF = async () => {
@@ -493,6 +596,20 @@ export default function LaborVendorLedgerPage() {
                                 </Button>
                                 <Button
                                     variant="secondary"
+                                    onClick={() => document.getElementById('excel-upload')?.click()}
+                                    className="flex-1"
+                                >
+                                    📤 Excel Upload
+                                </Button>
+                                <input
+                                    type="file"
+                                    id="excel-upload"
+                                    accept=".xlsx, .xls, .csv"
+                                    className="hidden"
+                                    onChange={handleExcelUpload}
+                                />
+                                <Button
+                                    variant="secondary"
                                     onClick={handleDownloadPDF}
                                     className="flex-1"
                                 >
@@ -502,7 +619,7 @@ export default function LaborVendorLedgerPage() {
 
                             {!selectedSite && (
                                 <p className="text-xs text-amber-600 mt-2">
-                                    ⚠️ Please select a site to add transactions
+                                    ⚠️ Please select a site to add transactions individually (not needed for Excel if site is in the sheet)
                                 </p>
                             )}
                         </div>
