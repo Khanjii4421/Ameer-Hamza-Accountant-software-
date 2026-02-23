@@ -3,26 +3,6 @@ import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { v4 as uuidv4 } from 'uuid';
 
-export async function GET(request: Request) {
-    try {
-        let companyId = request.headers.get('X-Company-ID');
-        // Removed company ID requirement
-        if (!companyId) companyId = 'default-company';
-
-        const stmt = db.prepare(`
-            SELECT dw.*, p.title as project_title 
-            FROM daily_work_logs dw
-            LEFT JOIN projects p ON dw.project_id = p.id
-            WHERE dw.company_id = ?
-            ORDER BY date DESC
-        `);
-        const logs = await stmt.all(companyId);
-        return NextResponse.json(logs);
-    } catch (error) {
-        return NextResponse.json({ error: 'Failed to fetch logs' }, { status: 500 });
-    }
-}
-
 export async function POST(req: Request) {
     try {
         let companyId = req.headers.get('X-Company-ID');

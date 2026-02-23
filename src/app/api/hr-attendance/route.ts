@@ -16,7 +16,7 @@ export async function GET(request: Request) {
         const params: any[] = [companyId];
 
         if (month) {
-            query += ` AND date LIKE ?`;
+            query += ` AND CAST(date AS TEXT) LIKE ?`;
             params.push(month + '%');
         }
         if (employeeId) {

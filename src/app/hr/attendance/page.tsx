@@ -34,7 +34,7 @@ export default function AttendancePage() {
                 api.hrAttendance.getAll(currentMonth),
                 api.hrLeaves.getAll()
             ]);
-            setEmployees(emps.filter(e => e.status === 'Active'));
+            setEmployees(emps.filter(e => !e.status || e.status.toLowerCase() === 'active'));
             const today = new Date().toISOString().split('T')[0];
             setTodayAttendance(atts.filter(a => a.date === today));
             setAllMonthAttendance(atts);
