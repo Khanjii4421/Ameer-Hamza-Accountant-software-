@@ -12,7 +12,7 @@ export async function PUT(
 
         const { id } = await params;
         const body = await request.json();
-        const { type, amount, description, payment_method, date, client_id, vendor_id, project_id } = body;
+        const { type, amount, description, payment_method, date, client_id, vendor_id, project_id, transaction_id, received_by, attachment_url } = body;
 
         const stmt = db.prepare(`
             UPDATE ledger_entries 
@@ -23,12 +23,15 @@ export async function PUT(
                 date = ?, 
                 client_id = ?, 
                 vendor_id = ?, 
-                project_id = ?
+                project_id = ?,
+                transaction_id = ?,
+                received_by = ?,
+                attachment_url = ?
             WHERE id = ? AND company_id = ?
             RETURNING *
         `);
 
-        const result = await stmt.get(type, amount, description, payment_method, date, client_id, vendor_id, project_id, id, companyId);
+        const result = await stmt.get(type, amount, description, payment_method, date, client_id, vendor_id, project_id, transaction_id, received_by, attachment_url, id, companyId);
 
         if (!result) {
             return NextResponse.json({ error: 'Ledger entry not found' }, { status: 404 });

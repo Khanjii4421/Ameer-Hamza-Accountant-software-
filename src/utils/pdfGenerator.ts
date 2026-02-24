@@ -292,16 +292,10 @@ export const saveOrMergePDF = async (doc: jsPDF, profile: any, filename: string,
             const pdfBytes = await pdfDoc.save();
             const blob = new Blob([pdfBytes as any], { type: 'application/pdf' });
             const url = URL.createObjectURL(blob);
-            const link = document.createElement('a');
-            link.style.display = 'none';
-            link.href = url;
-            link.download = filename;
-            document.body.appendChild(link);
-            link.click();
+            window.open(url, '_blank');
 
             // Cleanup
             setTimeout(() => {
-                document.body.removeChild(link);
                 window.URL.revokeObjectURL(url);
             }, 100);
 
@@ -414,17 +408,12 @@ export const generatePaymentSlip = async (
     doc.text('Authorized Signature', 110, y + 10, { align: 'center' });
     doc.line(90, y + 8, 130, y + 8);
 
-    // Save and AUTO-PRINT
+    // Save and OPEN IN NEW TAB
     const pdfBlob = doc.output('blob');
     const pdfUrl = URL.createObjectURL(pdfBlob);
 
-    // Open in new window and trigger print dialog
-    const printWindow = window.open(pdfUrl, '_blank');
-    if (printWindow) {
-        printWindow.onload = () => {
-            printWindow.print();
-        };
-    }
+    // Open in new window
+    window.open(pdfUrl, '_blank');
 };
 
 export const generateLedgerPDF = async (

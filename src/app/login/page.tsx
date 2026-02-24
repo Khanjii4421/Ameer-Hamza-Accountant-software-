@@ -29,7 +29,8 @@ export default function LoginPage() {
         if (!success) {
             setError('Invalid username or password');
         } else {
-            router.push('/dashboard');
+            // AuthContext already handles the redirection upon successful login
+            // based on user role, so no further routing is needed here.
         }
     };
 
