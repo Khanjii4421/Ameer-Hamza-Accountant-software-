@@ -33,6 +33,15 @@ const getBase64ImageFromURL = (url: string): Promise<string> => {
     });
 };
 
+const getLocalDateString = () => {
+    const d = new Date();
+    return [
+        d.getFullYear(),
+        String(d.getMonth() + 1).padStart(2, '0'),
+        String(d.getDate()).padStart(2, '0')
+    ].join('-');
+};
+
 export default function LaborVendorLedgerPage() {
     const { user } = useAuth();
     const router = useRouter();
@@ -64,7 +73,7 @@ export default function LaborVendorLedgerPage() {
     const [transactionForm, setTransactionForm] = useState({
         amount: '',
         description: '',
-        date: new Date().toISOString().split('T')[0],
+        date: getLocalDateString(),
         proof_url: ''
     });
     const [isUploading, setIsUploading] = useState(false);
@@ -189,6 +198,26 @@ export default function LaborVendorLedgerPage() {
         }
     };
 
+    const handleDeleteAllFiltered = async () => {
+        if (!expensesWithBalance || expensesWithBalance.length === 0) return;
+        if (!confirm(`Are you sure you want to delete ALL ${expensesWithBalance.length} currently filtered records?\n\nThis will delete these specific records forever.`)) return;
+
+        try {
+            // Delete one by one
+            for (const exp of expensesWithBalance) {
+                await api.laborExpenses.delete(exp.id);
+            }
+
+            // Remove from local state
+            const deletedIds = new Set(expensesWithBalance.map(e => e.id));
+            setExpenses(expenses.filter(e => !deletedIds.has(e.id)));
+            alert('Filtered expenses deleted successfully');
+        } catch (error) {
+            console.error('Failed to delete some expenses:', error);
+            alert('Error occurred while deleting some expenses. Please refresh.');
+        }
+    };
+
     const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
         if (!file) return;
@@ -268,7 +297,7 @@ export default function LaborVendorLedgerPage() {
         setTransactionForm({
             amount: '',
             description: '',
-            date: new Date().toISOString().split('T')[0],
+            date: getLocalDateString(),
             proof_url: ''
         });
         setEditingExpense(null);
@@ -316,10 +345,45 @@ export default function LaborVendorLedgerPage() {
                     }
 
                     // Format Date
-                    let formattedDate = new Date().toISOString().split('T')[0];
-                    const d = new Date(rowDate);
-                    if (!isNaN(d.getTime())) {
-                        formattedDate = d.toISOString().split('T')[0];
+                    let formattedDate = getLocalDateString();
+                    if (rowDate) {
+                        try {
+                            const dateStr = String(rowDate).trim();
+
+                            // Try to parse DD/MM/YYYY or DD-MM-YYYY
+                            const dmY = dateStr.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})$/);
+                            // Try to parse YYYY-MM-DD
+                            const Ymd = dateStr.match(/^(\d{4})[\/\-](\d{1,2})[\/\-](\d{1,2})$/);
+
+                            if (dmY) {
+                                formattedDate = `${dmY[3]}-${dmY[2].padStart(2, '0')}-${dmY[1].padStart(2, '0')}`;
+                            } else if (Ymd) {
+                                formattedDate = `${Ymd[1]}-${Ymd[2].padStart(2, '0')}-${Ymd[3].padStart(2, '0')}`;
+                            } else {
+                                // Default JS parsing
+                                const d = new Date(dateStr);
+                                if (!isNaN(d.getTime())) {
+                                    formattedDate = [
+                                        d.getFullYear(),
+                                        String(d.getMonth() + 1).padStart(2, '0'),
+                                        String(d.getDate()).padStart(2, '0')
+                                    ].join('-');
+                                }
+                            }
+
+                            // Check if it's an Excel numeric date
+                            if (!isNaN(Number(rowDate)) && Number(rowDate) > 20000) {
+                                const d = new Date((Number(rowDate) - (25567 + 1)) * 86400 * 1000);
+                                if (!isNaN(d.getTime())) {
+                                    formattedDate = [
+                                        d.getFullYear(),
+                                        String(d.getMonth() + 1).padStart(2, '0'),
+                                        String(d.getDate()).padStart(2, '0')
+                                    ].join('-');
+                                }
+                            }
+
+                        } catch (e) { }
                     }
 
                     // Clean amount
@@ -594,6 +658,21 @@ export default function LaborVendorLedgerPage() {
                                 ))}
                             </select>
                         </div>
+                        <div className="md:col-span-4 flex justify-end">
+                            <button
+                                onClick={() => {
+                                    setStartDate('');
+                                    setEndDate('');
+                                    setSelectedCategory('');
+                                    setSelectedVendor('');
+                                    setSelectedWorker('');
+                                    setSelectedSite('');
+                                }}
+                                className="text-[10px] font-black uppercase text-gray-400 hover:text-red-500 transition-colors"
+                            >
+                                Clear All Filters ✕
+                            </button>
+                        </div>
                     </div>
 
                     {selectedVendor && (
@@ -616,7 +695,7 @@ export default function LaborVendorLedgerPage() {
                                 <Button
                                     variant="primary"
                                     onClick={() => {
-                                        setTransactionForm({ ...transactionForm, date: new Date().toISOString().split('T')[0] });
+                                        setTransactionForm({ ...transactionForm, date: getLocalDateString() });
                                         setTransactionModal(true);
                                     }}
                                     disabled={!selectedSite}
@@ -645,6 +724,15 @@ export default function LaborVendorLedgerPage() {
                                 >
                                     📄 Download PDF
                                 </Button>
+                                {isAdmin && expensesWithBalance.length > 0 && (
+                                    <Button
+                                        variant="secondary"
+                                        onClick={handleDeleteAllFiltered}
+                                        className="flex-1 bg-red-50 text-red-600 hover:bg-red-100 border-red-100 font-bold"
+                                    >
+                                        🗑️ Delete All Filtered
+                                    </Button>
+                                )}
                             </div>
 
                             {!selectedSite && (
