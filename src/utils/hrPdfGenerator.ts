@@ -28,6 +28,51 @@ const getBase64ImageFromURL = (url: string): Promise<string> => {
     });
 };
 
+const renderUrduTextAsImage = (text: string, fontSize: number, color: number[] = [0, 0, 0], align: 'right' | 'center' | 'left' = 'right'): { dataUrl: string, width: number, height: number } => {
+    if (!text || typeof document === 'undefined') return { dataUrl: '', width: 0, height: 0 };
+    const canvas = document.createElement('canvas');
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return { dataUrl: '', width: 0, height: 0 };
+
+    const scale = 4;
+    ctx.canvas.dir = 'rtl';
+    (ctx as any).direction = 'rtl';
+    ctx.font = `${fontSize * scale}px "Noto Nastaliq Urdu", "Jameel Noori Nastaleeq", serif`;
+    const metrics = ctx.measureText(text);
+
+    const padding = 10 * scale;
+    canvas.width = metrics.width + padding;
+    canvas.height = (fontSize * 2.5) * scale;
+
+    ctx.canvas.dir = 'rtl';
+    (ctx as any).direction = 'rtl';
+    ctx.font = `${fontSize * scale}px "Noto Nastaliq Urdu", "Jameel Noori Nastaleeq", serif`;
+    ctx.fillStyle = `rgb(${color[0]}, ${color[1]}, ${color[2]})`;
+    ctx.textBaseline = 'middle';
+
+    if (align === 'center') {
+        ctx.textAlign = 'center';
+        ctx.fillText(text, canvas.width / 2, canvas.height / 2);
+    } else if (align === 'right') {
+        ctx.textAlign = 'right';
+        ctx.fillText(text, canvas.width - (padding / 2), canvas.height / 2);
+    } else {
+        ctx.textAlign = 'left';
+        ctx.fillText(text, padding / 2, canvas.height / 2);
+    }
+
+    // Convert back to document units (mm)
+    const mmWidth = (canvas.width / scale) * 0.264583;
+    const mmHeight = (canvas.height / scale) * 0.264583;
+
+    return {
+        dataUrl: canvas.toDataURL('image/png'),
+        width: mmWidth,
+        height: mmHeight
+    };
+};
+
+
 const getImageFormat = (dataUrl: string): string => {
     if (dataUrl.includes('image/png')) return 'PNG';
     if (dataUrl.includes('image/webp')) return 'WEBP';
@@ -1583,213 +1628,250 @@ export const generateAgreementPDF = async (data: any, profile: any, language: 'e
         const doc = new jsPDF();
         const isUrdu = language === 'ur';
         const pageWidth = doc.internal.pageSize.getWidth();
+        const leftX = 15;
+        const rightX = 110;
+        const SUCCESS_COLOR = [16, 185, 129]; // Emerald 500
 
         // drawSharedLetterhead returns the Y position where we should start content.
         let yPos = await drawSharedLetterhead(doc, profile, undefined, undefined, undefined);
-        yPos += 5; // Less padding for more vertical space
+        yPos += 5;
 
-        // 1. Title Wrapping
-        doc.setFont("helvetica", "bold");
-        doc.setFontSize(16);
-        const titleText = data.title.toUpperCase();
-        const splitTitle = doc.splitTextToSize(titleText, 180);
-        doc.text(splitTitle, pageWidth / 2, yPos, { align: "center" });
-        yPos += splitTitle.length * 7 + 8;
+        // Draw 2px full page border around the letterhead area or complete page
+        const drawPageBorder = () => {
+            doc.setDrawColor(0, 0, 0);       // Black border
+            doc.setLineWidth(0.5);           // Approx 2px width
+            const margin = 10;
+            const bWidth = pageWidth - margin * 2;
+            const bHeight = doc.internal.pageSize.getHeight() - margin * 2;
+            doc.rect(margin, margin, bWidth, bHeight, 'S'); // 'S' strokes the path (border only)
+        };
+        drawPageBorder();
 
-        // 2. Two Column Layout for Clients
-        const leftX = 15;
-        const rightX = 110;
+        // 1. Title
+        yPos -= 10;
+        doc.setFillColor(0, 0, 0);
+        doc.rect(leftX, yPos - 8, 180, 16, 'F');
+        doc.setFillColor(SUCCESS_COLOR[0], SUCCESS_COLOR[1], SUCCESS_COLOR[2]);
+        doc.rect(leftX, yPos - 8, 4, 16, 'F');
+        doc.rect(leftX + 176, yPos - 8, 4, 16, 'F');
 
-        doc.setFontSize(12);
-        doc.setFont("helvetica", "bold");
-        doc.setTextColor(0, 0, 0);
+        if (isUrdu) {
+            const titleImg = renderUrduTextAsImage(data.title, 22, [255, 255, 255], 'center'); // Bold heading with white text
+            doc.addImage(titleImg.dataUrl, 'PNG', (pageWidth - titleImg.width) / 2, yPos - 6.5, titleImg.width, titleImg.height);
+            yPos += titleImg.height + 6;
+        } else {
+            doc.setFont("helvetica", "bold");
+            doc.setFontSize(16);
+            doc.setTextColor(255, 255, 255);
+            const titleText = data.title.toUpperCase();
+            const splitTitle = doc.splitTextToSize(titleText, 170);
+            doc.text(splitTitle, pageWidth / 2, yPos, { align: "center" });
+            yPos += splitTitle.length * 7 + 8;
+        }
 
-        const p1Label = isUrdu ? "Fareeq 1 (Client 1):" : "Client 1:";
-        doc.text(p1Label, leftX, yPos);
+        doc.setTextColor(0, 0, 0); // Reset text color
 
-        const p2Label = isUrdu ? "Fareeq 2 (Client 2):" : "Client 2:";
-        doc.text(p2Label, rightX, yPos);
+        // 2. Clients
+        if (isUrdu) {
+            const p1Label = renderUrduTextAsImage("فریق اول:", 13, [0, 0, 0], 'right');
+            doc.addImage(p1Label.dataUrl, 'PNG', pageWidth - leftX - p1Label.width, yPos, p1Label.width, p1Label.height);
 
-        yPos += 6;
+            const p2Label = renderUrduTextAsImage("فریق دوم:", 13, [0, 0, 0], 'right');
+            doc.addImage(p2Label.dataUrl, 'PNG', pageWidth - rightX - p2Label.width, yPos, p2Label.width, p2Label.height);
+            yPos += 10;
 
-        doc.setFontSize(11);
+            const p1Name = renderUrduTextAsImage(data.party_one_name, 11, [0, 0, 0], 'right');
+            doc.addImage(p1Name.dataUrl, 'PNG', pageWidth - leftX - p1Name.width, yPos, p1Name.width, p1Name.height);
 
-        // Client 1 Name
-        doc.setFont("helvetica", "bold");
-        const p1NameLines = doc.splitTextToSize(data.party_one_name, 85);
-        doc.text(p1NameLines, leftX, yPos);
+            const companyNameUrdu = profile?.name || "میران بلڈرز";
+            const p2Name = renderUrduTextAsImage(companyNameUrdu, 11, [0, 0, 0], 'right');
+            doc.addImage(p2Name.dataUrl, 'PNG', pageWidth - rightX - p2Name.width, yPos, p2Name.width, p2Name.height);
+            yPos += p1Name.height + 2;
 
-        // Client 2 Name (Company Name)
-        const companyName = profile.name || "Miran Builders Engineering & Construction";
-        const p2NameLines = doc.splitTextToSize(companyName, 85);
-        doc.text(p2NameLines, rightX, yPos);
+            const p1Details = data.party_one_details || "";
+            let p1DetHeight = 0;
+            if (p1Details) {
+                const lines = p1Details.split('\n');
+                let currY = yPos;
+                for (let line of lines) {
+                    const lImg = renderUrduTextAsImage(line.trim(), 12, [80, 80, 80], 'right'); // Increased font
+                    if (lImg.width > 0) {
+                        doc.addImage(lImg.dataUrl, 'PNG', pageWidth - leftX - lImg.width, currY, lImg.width, lImg.height);
+                        currY += lImg.height + 4; // increased spacing
+                    }
+                }
+                p1DetHeight = currY - yPos;
+            }
 
-        let currentYLeft = yPos + p1NameLines.length * 5 + 2;
-        let currentYRight = yPos + p2NameLines.length * 5 + 2;
+            const companyAddressUrdu = profile?.address || "آفس نمبر 386، ایل ڈی اے ایونیو ون، رائیونڈ روڈ، لاہور";
+            const p2AddrImg = renderUrduTextAsImage(companyAddressUrdu, 12, [80, 80, 80], 'right'); // Increased font
+            doc.addImage(p2AddrImg.dataUrl, 'PNG', pageWidth - rightX - p2AddrImg.width, yPos, p2AddrImg.width, p2AddrImg.height);
+            yPos += Math.max(p1DetHeight, p2AddrImg.height) + 12;
+        } else {
+            doc.setFontSize(12);
+            doc.setFont("helvetica", "bold");
+            doc.text("Client 1:", leftX, yPos);
+            doc.text("Client 2:", rightX, yPos);
+            yPos += 6;
 
-        doc.setFont("helvetica", "normal");
-        doc.setFontSize(10);
+            doc.setFontSize(11);
+            const p1NameLines = doc.splitTextToSize(data.party_one_name, 85);
+            doc.text(p1NameLines, leftX, yPos);
 
-        // Client 1 Details
-        const p1DetailsLines = doc.splitTextToSize(data.party_one_details || "", 85);
-        doc.text(p1DetailsLines, leftX, currentYLeft);
-        currentYLeft += p1DetailsLines.length * 5;
+            const companyName = profile?.name || "Miran Builders";
+            const p2NameLines = doc.splitTextToSize(companyName, 85);
+            doc.text(p2NameLines, rightX, yPos);
 
-        // Client 2 Details (Company Address & Phone)
-        const p2Address = profile.address || "Address: 386-A, LDA Avenue One Scheme, Raiwind Road, Lahore";
-        const p2Phone = profile.phone || "Phone: +92321-9300005";
+            let currentYLeft = yPos + p1NameLines.length * 5 + 2;
+            let currentYRight = yPos + p2NameLines.length * 5 + 2;
 
-        const p2AddrLines = doc.splitTextToSize(p2Address, 85);
-        doc.text(p2AddrLines, rightX, currentYRight);
-        currentYRight += p2AddrLines.length * 5;
-        doc.text(p2Phone, rightX, currentYRight);
-        currentYRight += 5;
+            doc.setFont("helvetica", "normal");
+            doc.setFontSize(10);
+            const p1DetailsLines = doc.splitTextToSize(data.party_one_details || "", 85);
+            doc.text(p1DetailsLines, leftX, currentYLeft);
+            currentYLeft += p1DetailsLines.length * 5;
 
-        yPos = Math.max(currentYLeft, currentYRight) + 12;
+            const p2Address = profile?.address || "Address: 386-A, LDA Avenue One Scheme, Raiwind Road, Lahore";
+            const p2Phone = profile?.phone || "Phone: +92321-9300005";
+            const p2AddrLines = doc.splitTextToSize(p2Address, 85);
+            doc.text(p2AddrLines, rightX, currentYRight);
+            currentYRight += p2AddrLines.length * 5;
+            doc.text(p2Phone, rightX, currentYRight);
+            currentYRight += 5;
+            yPos = Math.max(currentYLeft, currentYRight) + 12;
+        }
 
         // Colors setup
-        const THEME_BG = [240, 244, 248]; // Light elegant grey/blue (looks professional/glass)
-        const THEME_TEXT = [15, 23, 42]; // Slate 900
-        const NUMBER_COLORS = [
-            [37, 99, 235],  // Blue
-            [220, 38, 38],  // Red
-            [22, 163, 74],  // Green
-            [202, 138, 4],  // Gold/Yellow
-            [147, 51, 234], // Purple
-            [234, 88, 12],  // Orange
-            [13, 148, 136]  // Teal
-        ];
+        const THEME_BG = [0, 0, 0];
+        const THEME_TEXT = [255, 255, 255];
+        const NUMBER_COLORS = [[37, 99, 235], [220, 38, 38], [22, 163, 74], [202, 138, 4], [147, 51, 234], [234, 88, 12], [13, 148, 136]];
 
-        // 3. Helper to draw sections with background and colored numbers
         const drawSection = (title: string, items: string[]) => {
-            // Check page break for section header
-            if (yPos > 255) {
+            if (yPos > 240) {
                 doc.addPage();
+                drawPageBorder(); // Re-apply border for new page
                 yPos = 20;
             }
 
-            // Background Box for Heading
+            // Heading background element
             doc.setFillColor(THEME_BG[0], THEME_BG[1], THEME_BG[2]);
             doc.rect(leftX, yPos, 180, 10, 'F');
 
-            doc.setFontSize(12);
-            doc.setFont("helvetica", "bold");
-            doc.setTextColor(THEME_TEXT[0], THEME_TEXT[1], THEME_TEXT[2]);
-            // text in center of the box
-            doc.text(title, pageWidth / 2, yPos + 7, { align: "center" });
-            yPos += 16; // Shift down for the content below
+            // Decorative blank sides for heading
+            doc.setFillColor(SUCCESS_COLOR[0], SUCCESS_COLOR[1], SUCCESS_COLOR[2]); // Emerald accent
+            doc.rect(leftX, yPos, 4, 10, 'F');
+            doc.rect(leftX + 176, yPos, 4, 10, 'F');
 
-            doc.setFont("helvetica", "normal");
-            doc.setFontSize(11);
-            doc.setTextColor(0, 0, 0); // Reset text color to black
+            if (isUrdu) {
+                const titleImg = renderUrduTextAsImage(title, 16, THEME_TEXT, 'center'); // Bigger heading
+                doc.addImage(titleImg.dataUrl, 'PNG', (pageWidth - titleImg.width) / 2, yPos + 1.2, titleImg.width, titleImg.height);
+            } else {
+                doc.setFontSize(13); doc.setFont("helvetica", "bold"); doc.setTextColor(THEME_TEXT[0], THEME_TEXT[1], THEME_TEXT[2]);
+                doc.text(title, pageWidth / 2, yPos + 7, { align: "center" });
+            }
+            yPos += 14; // Minimal space underneath heading
 
             if (!items || items.length === 0) {
-                doc.text("No details defined.", leftX + 5, yPos);
+                doc.text(isUrdu ? "" : "No details defined.", leftX + 5, yPos);
                 yPos += 8;
             } else {
                 items.forEach((item: string, index: number) => {
-                    const lineSpacing = 6;
+                    const lineSpacing = isUrdu ? 12 : 6;
 
-                    // The number color
-                    const numColor = NUMBER_COLORS[index % NUMBER_COLORS.length];
-
-                    // Measure the bullet text width
-                    const numText = `${index + 1}. `;
-                    const numWidth = doc.getTextWidth(numText);
-
-                    // Split actual text using remaining width
-                    const splitLines = doc.splitTextToSize(item, 170 - numWidth);
-
-                    // Check page break before rendering this item
-                    if (yPos + splitLines.length * lineSpacing > 275) {
+                    if (yPos > 270) {
                         doc.addPage();
+                        drawPageBorder(); // Re-apply border for new page
                         yPos = 20;
                     }
 
-                    // Print Number (Colored & Bold)
-                    doc.setTextColor(numColor[0], numColor[1], numColor[2]);
-                    doc.setFont("helvetica", "bold");
                     if (isUrdu) {
-                        // Urdu text alignment styling just by appending . at end
-                        const uNum = `${item} .${index + 1}`;
-                        const urSplit = doc.splitTextToSize(uNum, 170);
-                        doc.text(urSplit, pageWidth - 15, yPos, { align: "right" } as any);
-                        yPos += urSplit.length * lineSpacing + 3;
+                        const fullText = `${index + 1}.   ${item}`; // Space after number
+                        const itemImg = renderUrduTextAsImage(fullText, 14, [0, 0, 0], 'right'); // Font increased further
+
+                        const rightPaddingX = pageWidth - leftX - 10;
+
+                        if (itemImg.width > 165) {
+                            doc.addImage(itemImg.dataUrl, 'PNG', rightPaddingX - 165, yPos, 165, itemImg.height);
+                        } else {
+                            doc.addImage(itemImg.dataUrl, 'PNG', rightPaddingX - itemImg.width, yPos, itemImg.width, itemImg.height);
+                        }
+                        yPos += itemImg.height + 2; // Optimal spacing
+
                     } else {
+                        const numColor = NUMBER_COLORS[index % NUMBER_COLORS.length];
+                        doc.setTextColor(numColor[0], numColor[1], numColor[2]);
+                        doc.setFont("helvetica", "bold");
+                        const numText = `${index + 1}. `;
+                        const numWidth = doc.getTextWidth(numText);
                         doc.text(numText, leftX + 5, yPos);
 
-                        // Print Text (Black & Normal)
-                        doc.setTextColor(0, 0, 0);
-                        doc.setFont("helvetica", "normal");
+                        doc.setTextColor(0, 0, 0); doc.setFont("helvetica", "normal");
+                        const splitLines = doc.splitTextToSize(item, 170 - numWidth);
                         doc.text(splitLines, leftX + 5 + numWidth, yPos);
-                        yPos += splitLines.length * lineSpacing + 3;
+                        yPos += splitLines.length * lineSpacing + 2;
                     }
                 });
             }
-            yPos += 6; // Padding after section
+            yPos += 4; // Minimal space after section
         };
 
-        // Render Sections
-        const sowLabel = isUrdu ? "Kam ki Tafseel (Scope of Work):" : "Scope of Work:";
-        drawSection(sowLabel, data.scope_of_work);
-
-        const ratesLabel = isUrdu ? "Kam kay Rates (Rates of Work):" : "Rates of Work:";
-        drawSection(ratesLabel, data.rates_of_work);
-
-        const paymentLabel = isUrdu ? "Payment Schedule:" : "Payment Schedule:";
-        drawSection(paymentLabel, data.payment_schedule);
-
-        // 4. Space for Signatures and Thumbs
-        yPos = Math.max(yPos + 25, 230); // push it down a bit but ensure it stays grouped
-        if (yPos > 265) {
-            doc.addPage();
-            yPos = 230; // Better bottom placement for signatures on new page
+        const sectionsToDraw = [];
+        if (data.scope_of_work && !Array.isArray(data.scope_of_work) && data.scope_of_work.is_dynamic) {
+            sectionsToDraw.push(...data.scope_of_work.sections);
+        } else {
+            sectionsToDraw.push({ heading: data.scope_heading || (isUrdu ? "ورک سکوپ" : "Scope of Work"), items: Array.isArray(data.scope_of_work) ? data.scope_of_work : [] });
+            sectionsToDraw.push({ heading: data.rates_heading || (isUrdu ? "ادائیگی کی شرح" : "Rates of Work"), items: Array.isArray(data.rates_of_work) ? data.rates_of_work : [] });
+            sectionsToDraw.push({ heading: data.payment_heading || (isUrdu ? "ادائیگی کا طریقہ کار" : "Payment Schedule"), items: Array.isArray(data.payment_schedule) ? data.payment_schedule : [] });
         }
 
-        doc.setFont("helvetica", "bold");
-        doc.setFontSize(10);
-        doc.setTextColor(0, 0, 0);
-
-        const sig1Label = isUrdu ? "Client 1 Signature/Thumb" : "Client 1 Signature/Thumb";
-        const sig2Label = isUrdu ? "Client 2 Signature/Thumb" : "Client 2 Signature/Thumb";
-
-        // Draw Signature Blocks
-        // Client 1 (Left side)
-        doc.text("_______________________", 20, yPos);
-        doc.text("_______________________", 20, yPos + 15);
-
-        doc.setFont("helvetica", "normal");
-        doc.setFontSize(9);
-        doc.text("Signature", 20, yPos + 5);
-        doc.text("Thumb", 20, yPos + 20);
-        doc.setFont("helvetica", "bold");
-        doc.text(sig1Label, 20, yPos + 28);
-
-        // Client 2 (Right side)
-        doc.text("_______________________", 130, yPos);
-        doc.text("_______________________", 130, yPos + 15);
-
-        doc.setFont("helvetica", "normal");
-        doc.text("Signature", 130, yPos + 5);
-        doc.text("Thumb", 130, yPos + 20);
-        doc.setFont("helvetica", "bold");
-        doc.text(sig2Label, 130, yPos + 28);
-
-        // Stamp
-        if (showStamp && profile?.stamp_url) {
-            try {
-                const stampBase64 = await getBase64ImageFromURL(profile.stamp_url);
-                const stampFormat = getImageFormat(stampBase64);
-                // Center stamp at Client 2 Signature area
-                doc.addImage(stampBase64, stampFormat, 140, yPos - 25, 30, 30);
-            } catch (error) {
-                console.error("Error adding stamp image:", error);
+        for (const section of sectionsToDraw) {
+            if (section.items && section.items.length > 0 && section.items[0] !== '') {
+                drawSection(section.heading, section.items);
             }
         }
 
+        // Signatures
+        yPos = Math.max(yPos + 5, 235); // Decreased minimum height push
+        if (yPos > 260) {
+            doc.addPage();
+            drawPageBorder(); // Re-apply border for new page
+            yPos = 20;
+        }
+
+        if (isUrdu) {
+            const sig1Label = renderUrduTextAsImage("فریق اول کے دستخط / انگوٹھا", 12, [0, 0, 0], 'center');
+
+            const sig2Title = renderUrduTextAsImage("CEO", 12, [0, 0, 0], 'center');
+            const sig2Name1 = renderUrduTextAsImage("Adnan", 12, [0, 0, 0], 'center');
+            const sig2Name2 = renderUrduTextAsImage("Zafar", 12, [0, 0, 0], 'center');
+
+            doc.setLineWidth(0.3);
+            doc.line(25, yPos, 75, yPos); // Condensed lines
+            doc.line(135, yPos, 185, yPos);
+
+            doc.addImage(sig1Label.dataUrl, 'PNG', 50 - (sig1Label.width / 2), yPos + 2, sig1Label.width, sig1Label.height);
+
+            // Tighter spacing for CEO details
+            doc.addImage(sig2Title.dataUrl, 'PNG', 160 - (sig2Title.width / 2), yPos + 1, sig2Title.width, sig2Title.height);
+            doc.addImage(sig2Name1.dataUrl, 'PNG', 160 - (sig2Name1.width / 2), yPos + 6, sig2Name1.width, sig2Name1.height);
+            doc.addImage(sig2Name2.dataUrl, 'PNG', 160 - (sig2Name2.width / 2), yPos + 11, sig2Name2.width, sig2Name2.height);
+        } else {
+            doc.setFont("helvetica", "bold"); doc.setFontSize(10);
+            doc.text("_______________________", 20, yPos);
+            doc.text("_______________________", 130, yPos);
+            doc.text("Client 1 Signature/Thumb", 20, yPos + 8);
+            doc.text("CEO\nAdnan\nZafar", 160, yPos + 8, { align: 'center' });
+        }
+
+        if (showStamp && profile?.stamp_url) {
+            try {
+                const stampBase64 = await getBase64ImageFromURL(profile.stamp_url);
+                doc.addImage(stampBase64, getImageFormat(stampBase64), 160 - 15, yPos - 30, 30, 30);
+            } catch (e) { }
+        }
+
         const titleStr = data.title.replace(/[^a-zA-Z0-9]/g, '_').substring(0, 30);
-        const langStr = language.toUpperCase();
-        await saveOrMergePDF(doc, profile, `Agreement_${titleStr}_${langStr}.pdf`);
+        await saveOrMergePDF(doc, profile, `Agreement_${titleStr}_${language.toUpperCase()}.pdf`);
     } catch (error) {
         console.error("Error generating Agreement PDF:", error);
         throw error;

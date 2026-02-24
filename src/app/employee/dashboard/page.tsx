@@ -38,6 +38,9 @@ export default function EmployeeDashboard() {
     const [leaveForm, setLeaveForm] = useState({ from_date: '', to_date: '', reason: '', leave_type: 'Full' });
     const [myLeaves, setMyLeaves] = useState<HRLeave[]>([]);
 
+    // Work History State
+    const [myWorkLogs, setMyWorkLogs] = useState<any[]>([]);
+
     const videoRef = useRef<HTMLVideoElement>(null);
     const canvasRef = useRef<HTMLCanvasElement>(null);
 
@@ -72,6 +75,14 @@ export default function EmployeeDashboard() {
             // Load My Leaves
             const allLeaves = await api.hrLeaves.getAll();
             setMyLeaves(allLeaves.filter((l: any) => l.employee_id === user?.employee_id));
+
+            // Load My Work Logs
+            try {
+                const allWorkLogs = await api.dailyWorkLogs.getAll();
+                setMyWorkLogs(allWorkLogs.filter((w: any) => w.employee_id === user?.employee_id));
+            } catch (err) {
+                console.error("Error loading work logs:", err);
+            }
 
         } catch (e) {
             console.error(e);
@@ -198,6 +209,7 @@ export default function EmployeeDashboard() {
             } as any);
             alert('Work Submitted Successfully! ✅');
             setWorkForm({ description: '', feet: '', project_id: '', expenses: '', expense_description: '' });
+            loadData();
         } catch (e: any) {
             alert('Failed to submit: ' + e.message);
         }
@@ -511,6 +523,32 @@ export default function EmployeeDashboard() {
                                     >
                                         {loading ? 'Saving...' : 'Submit Log 💾'}
                                     </button>
+                                </div>
+
+                                <div className="mt-8">
+                                    <h3 className="text-lg font-black text-slate-700 mb-4 px-2">My Recent Work Logs 📋</h3>
+                                    <div className="space-y-3">
+                                        {myWorkLogs.length === 0 ? (
+                                            <p className="text-center text-slate-400 text-xs text-opacity-70 italic">No work history found.</p>
+                                        ) : (
+                                            myWorkLogs.map((log: any) => (
+                                                <div key={log.id} className="bg-white p-4 rounded-3xl shadow-sm border border-slate-100 flex flex-col gap-2">
+                                                    <div className="flex items-start justify-between">
+                                                        <p className="font-bold text-sm text-slate-800">{new Date(log.date).toLocaleDateString()}</p>
+                                                        <span className="text-[10px] bg-slate-100 text-slate-600 px-2 py-1 rounded uppercase font-black truncate max-w-[150px]">{log.project_title || 'Project'}</span>
+                                                    </div>
+                                                    <p className="text-xs text-slate-600 font-medium">{log.description}</p>
+                                                    <div className="flex items-center gap-4 text-[10px] font-black text-slate-400 uppercase mt-1">
+                                                        {log.feet && <span className="text-indigo-500 bg-indigo-50 px-2 py-0.5 rounded">Measurement: {log.feet} FT</span>}
+                                                        {log.expenses > 0 && <span className="text-red-500 bg-red-50 px-2 py-0.5 rounded">- {log.expenses} PKR</span>}
+                                                    </div>
+                                                    {log.expense_description && (
+                                                        <p className="text-[10px] text-slate-400 mt-1 italic">Exp: {log.expense_description}</p>
+                                                    )}
+                                                </div>
+                                            ))
+                                        )}
+                                    </div>
                                 </div>
                             </div>
                         )}

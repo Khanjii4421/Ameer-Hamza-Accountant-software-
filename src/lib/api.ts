@@ -274,9 +274,9 @@ export interface HRAgreement {
     title: string;
     party_one_name: string;
     party_one_details: string;
-    scope_of_work: string[];
-    rates_of_work: string[];
-    payment_schedule: string[];
+    scope_of_work: any;
+    rates_of_work: any;
+    payment_schedule: any;
     company_id: string;
     created_at: string;
 }

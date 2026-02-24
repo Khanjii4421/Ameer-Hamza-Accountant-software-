@@ -201,6 +201,16 @@ body {
     text-transform: uppercase;
     letter-spacing: 0.05em;
   }
+
+  .font-urdu {
+    font-family: var(--font-noto-nastaliq-urdu), "Jameel Noori Nastaleeq", serif;
+    line-height: 1.8;
+  }
+
+  [dir="rtl"] .font-urdu {
+    direction: rtl;
+    text-align: right;
+  }
 }
 
 /* Custom Scrollbar */
@@ -372,11 +382,13 @@ body {
     opacity: 0;
     filter: blur(10px);
   }
+
   50% {
     transform: scale(1.1);
     opacity: 1;
     filter: blur(0);
   }
+
   100% {
     transform: scale(1);
     opacity: 1;
@@ -387,6 +399,7 @@ body {
   0% {
     background-position: 0% 50%;
   }
+
   100% {
     background-position: 100% 50%;
   }
@@ -397,6 +410,7 @@ body {
     opacity: 1;
     visibility: visible;
   }
+
   100% {
     opacity: 0;
     visibility: hidden;

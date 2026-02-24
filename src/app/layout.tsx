@@ -9,6 +9,16 @@ const poppins = Poppins({
   display: "swap",
 });
 
+import { Noto_Nastaliq_Urdu } from "next/font/google";
+
+const notoNastaliqUrdu = Noto_Nastaliq_Urdu({
+  variable: "--font-noto-nastaliq-urdu",
+  subsets: ["arabic"],
+  weight: ["400", "500", "600", "700"],
+  display: "swap",
+});
+
+
 export const metadata: Metadata = {
   title: "Management System Dashboard",
   description: "Secure Portal Financial Management System",
@@ -25,7 +35,7 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body
-        className={`${poppins.variable} antialiased bg-background text-foreground`}
+        className={`${poppins.variable} ${notoNastaliqUrdu.variable} antialiased bg-background text-foreground`}
         suppressHydrationWarning
       >
         <AuthProvider>
