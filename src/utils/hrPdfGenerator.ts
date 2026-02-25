@@ -42,7 +42,8 @@ const renderUrduTextAsImage = (text: string, fontSize: number, color: number[] =
 
     const padding = 10 * scale;
     canvas.width = metrics.width + padding;
-    canvas.height = (fontSize * 2.5) * scale;
+    // Increased canvas height to prevent clipping tall Urdu characters like 'ک' (kaf)
+    canvas.height = (fontSize * 3.5) * scale;
 
     ctx.canvas.dir = 'rtl';
     (ctx as any).direction = 'rtl';
@@ -1657,8 +1658,10 @@ export const generateAgreementPDF = async (data: any, profile: any, language: 'e
 
         if (isUrdu) {
             const titleImg = renderUrduTextAsImage(data.title, 22, [255, 255, 255], 'center'); // Bold heading with white text
-            doc.addImage(titleImg.dataUrl, 'PNG', (pageWidth - titleImg.width) / 2, yPos - 6.5, titleImg.width, titleImg.height);
-            yPos += titleImg.height + 6;
+            // Box is 16 height, starting at yPos - 8
+            const titleCenterY = (yPos - 8) + (16 - titleImg.height) / 2;
+            doc.addImage(titleImg.dataUrl, 'PNG', (pageWidth - titleImg.width) / 2, titleCenterY, titleImg.width, titleImg.height);
+            yPos += Math.max(16, titleImg.height) + 6;
         } else {
             doc.setFont("helvetica", "bold");
             doc.setFontSize(16);
@@ -1683,7 +1686,61 @@ export const generateAgreementPDF = async (data: any, profile: any, language: 'e
             const p1Name = renderUrduTextAsImage(data.party_one_name, 11, [0, 0, 0], 'right');
             doc.addImage(p1Name.dataUrl, 'PNG', pageWidth - leftX - p1Name.width, yPos, p1Name.width, p1Name.height);
 
-            const companyNameUrdu = profile?.name || "میران بلڈرز";
+            // Transliterate function to translate English company info to Urdu
+            const translateToUrdu = (text: string) => {
+                if (!text || /[\u0600-\u06FF]/.test(text)) return text; // If already Urdu, return as is
+
+                let lower = text.toLowerCase().trim();
+
+                // Specific matches overrides
+                if (lower.includes("ameer") && lower.includes("hamza")) {
+                    return "امیر حمزہ ڈویلپرز";
+                }
+                if (lower.includes("miran") && lower.includes("builder")) {
+                    return text.replace(new RegExp("miran builders", "ig"), "میران بلڈرز");
+                }
+                if (lower.includes("jubilee town")) {
+                    return "A-9 جوبلی ٹاؤن، لاہور";
+                }
+                if (lower.includes("lda avenue") || lower.includes("386")) {
+                    return "آفس نمبر 386، ایل ڈی اے ایونیو ون، رائیونڈ روڈ، لاہور";
+                }
+
+                // General words mapping for other companies
+                const wordMap: Record<string, string> = {
+                    "ameer": "امیر", "hamza": "حمزہ", "developers": "ڈویلپرز", "developer": "ڈویلپر",
+                    "miran": "میران", "builders": "بلڈرز", "builder": "بلڈر", "associates": "ایسوسی ایٹس",
+                    "construction": "کنسٹرکشن", "company": "کمپنی", "town": "ٹاؤن", "lahore": "لاہور",
+                    "karachi": "کراچی", "islamabad": "اسلام آباد", "road": "روڈ", "street": "سٹریٹ",
+                    "house": "مکان", "office": "آفس", "no": "نمبر", "block": "بلاک", "phase": "فیز",
+                    "city": "سٹی", "housing": "ہاؤسنگ", "scheme": "سکیم", "avenue": "ایونیو",
+                    "jubilee": "جوبلی", "lda": "ایل ڈی اے", "group": "گروپ", "enterprises": "انٹرپرائزز"
+                };
+
+                let translated = text;
+                Object.keys(wordMap).forEach(enWord => {
+                    const regex = new RegExp(`\\b${enWord}\\b`, "ig");
+                    translated = translated.replace(regex, wordMap[enWord]);
+                });
+
+                return translated;
+            };
+
+            let defaultUrduName = profile?.name || "میران بلڈرز";
+            let defaultUrduAddress = profile?.address;
+
+            if (defaultUrduName.toLowerCase().includes("ameer") && defaultUrduName.toLowerCase().includes("hamza")) {
+                let checkAddress = (defaultUrduAddress || "").toLowerCase();
+                if (!checkAddress || checkAddress.includes("lda") || checkAddress.includes("386")) {
+                    defaultUrduAddress = "A-9 جوبلی ٹاؤن، لاہور";
+                }
+            } else if (!defaultUrduAddress) {
+                defaultUrduAddress = "آفس نمبر 386، ایل ڈی اے ایونیو ون، رائیونڈ روڈ، لاہور";
+            }
+
+            let companyNameUrdu = translateToUrdu(defaultUrduName);
+            let companyAddressUrdu = translateToUrdu(defaultUrduAddress);
+
             const p2Name = renderUrduTextAsImage(companyNameUrdu, 11, [0, 0, 0], 'right');
             doc.addImage(p2Name.dataUrl, 'PNG', pageWidth - rightX - p2Name.width, yPos, p2Name.width, p2Name.height);
             yPos += p1Name.height + 2;
@@ -1703,7 +1760,7 @@ export const generateAgreementPDF = async (data: any, profile: any, language: 'e
                 p1DetHeight = currY - yPos;
             }
 
-            const companyAddressUrdu = profile?.address || "آفس نمبر 386، ایل ڈی اے ایونیو ون، رائیونڈ روڈ، لاہور";
+            // Use the companyAddressUrdu determined above
             const p2AddrImg = renderUrduTextAsImage(companyAddressUrdu, 12, [80, 80, 80], 'right'); // Increased font
             doc.addImage(p2AddrImg.dataUrl, 'PNG', pageWidth - rightX - p2AddrImg.width, yPos, p2AddrImg.width, p2AddrImg.height);
             yPos += Math.max(p1DetHeight, p2AddrImg.height) + 12;
@@ -1764,7 +1821,9 @@ export const generateAgreementPDF = async (data: any, profile: any, language: 'e
 
             if (isUrdu) {
                 const titleImg = renderUrduTextAsImage(title, 16, THEME_TEXT, 'center'); // Bigger heading
-                doc.addImage(titleImg.dataUrl, 'PNG', (pageWidth - titleImg.width) / 2, yPos + 1.2, titleImg.width, titleImg.height);
+                // Box start is yPos, height is 10. Center vertically
+                const titleCenterY = yPos + (10 - titleImg.height) / 2;
+                doc.addImage(titleImg.dataUrl, 'PNG', (pageWidth - titleImg.width) / 2, titleCenterY, titleImg.width, titleImg.height);
             } else {
                 doc.setFontSize(13); doc.setFont("helvetica", "bold"); doc.setTextColor(THEME_TEXT[0], THEME_TEXT[1], THEME_TEXT[2]);
                 doc.text(title, pageWidth / 2, yPos + 7, { align: "center" });

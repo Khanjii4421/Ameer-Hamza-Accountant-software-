@@ -405,13 +405,13 @@ export default function AgreementsPage() {
                                             <td className="p-3 border-b text-gray-600">{agr.party_one_name}</td>
                                             <td className="p-3 border-b text-xs text-gray-500">
                                                 {agr.scope_of_work?.is_dynamic ? (
-                                                    agr.scope_of_work.sections.map((sec: any, i: number) => (
+                                                    (agr.scope_of_work?.sections || []).map((sec: any, i: number) => (
                                                         <div key={i}>{sec.heading}: {sec.items?.length || 0} پوائنٹس</div>
                                                     ))
                                                 ) : (
                                                     <>
-                                                        تفصیل: {(agr.scope_of_work?.length) || 0} پوائنٹس<br />
-                                                        ریٹ: {(agr.rates_of_work?.length) || 0} پوائنٹس
+                                                        تفصیل: {Array.isArray(agr.scope_of_work) ? agr.scope_of_work.length : 0} پوائنٹس<br />
+                                                        ریٹ: {Array.isArray(agr.rates_of_work) ? agr.rates_of_work.length : 0} پوائنٹس
                                                     </>
                                                 )}
                                             </td>
