@@ -305,7 +305,7 @@ export default function DPRPage() {
         return labors.filter(l => l.vendor_id === formEntry.vendor_id);
     }, [labors, formEntry.vendor_id]);
 
-    const generateDPRPdf = () => {
+    const generateDPRPdf = async () => {
         if (!selectedProject) return alert("Select a project first");
 
         // 1. Password Protection & Tracking
@@ -317,6 +317,23 @@ export default function DPRPage() {
         else if (pwd === 'Khalil123@') downloadedBy = 'Khalil';
         else return alert("Invalid Password! Download Denied.");
 
+
+        // Fetch and convert letterhead to base64 first
+        let base64Letterhead = '';
+        if (profile?.letterhead_url) {
+            try {
+                const imgResult = await fetch(profile.letterhead_url);
+                const blob = await imgResult.blob();
+                base64Letterhead = await new Promise<string>((resolve, reject) => {
+                    const reader = new FileReader();
+                    reader.onloadend = () => resolve(reader.result as string);
+                    reader.onerror = reject;
+                    reader.readAsDataURL(blob);
+                });
+            } catch (err) {
+                console.error("Failed to fetch letterhead image", err);
+            }
+        }
 
         // Switched to Portrait A4 as requested
         const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
@@ -340,11 +357,11 @@ export default function DPRPage() {
 
         const drawHeader = (data: any) => {
             const headerHeight = 40;
-            if (profile?.letterhead_url) {
+            if (base64Letterhead) {
                 try {
-                    const ext = profile.letterhead_url.split('.').pop()?.toLowerCase() || 'jpeg';
-                    const format = ext === 'png' ? 'PNG' : 'JPEG';
-                    doc.addImage(profile.letterhead_url, format, 0, 10, pageWidth, headerHeight);
+                    const ext = profile?.letterhead_url?.split('.').pop()?.toLowerCase() || 'jpeg';
+                    const format = (ext === 'png' || base64Letterhead.includes('image/png')) ? 'PNG' : 'JPEG';
+                    doc.addImage(base64Letterhead, format, 0, 10, pageWidth, headerHeight);
                 } catch (e) {
                     // Fallback Plain Header
                     doc.setFillColor(colors.primary[0], colors.primary[1], colors.primary[2]);
