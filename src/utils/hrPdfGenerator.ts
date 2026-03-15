@@ -1700,7 +1700,7 @@ export const generateAgreementPDF = async (data: any, profile: any, language: 'e
                     return text.replace(new RegExp("miran builders", "ig"), "میران بلڈرز");
                 }
                 if (lower.includes("jubilee town")) {
-                    return "A-9 جوبلی ٹاؤن، لاہور";
+                    return "9-B جوبلی ٹاؤن، لاہور";
                 }
                 if (lower.includes("lda avenue") || lower.includes("386")) {
                     return "آفس نمبر 386، ایل ڈی اے ایونیو ون، رائیونڈ روڈ، لاہور";
@@ -1732,7 +1732,7 @@ export const generateAgreementPDF = async (data: any, profile: any, language: 'e
             if (defaultUrduName.toLowerCase().includes("ameer") && defaultUrduName.toLowerCase().includes("hamza")) {
                 let checkAddress = (defaultUrduAddress || "").toLowerCase();
                 if (!checkAddress || checkAddress.includes("lda") || checkAddress.includes("386")) {
-                    defaultUrduAddress = "A-9 جوبلی ٹاؤن، لاہور";
+                    defaultUrduAddress = "9-B جوبلی ٹاؤن، لاہور";
                 }
             } else if (!defaultUrduAddress) {
                 defaultUrduAddress = "آفس نمبر 386، ایل ڈی اے ایونیو ون، رائیونڈ روڈ، لاہور";

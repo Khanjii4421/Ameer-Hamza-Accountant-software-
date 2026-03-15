@@ -44,7 +44,7 @@ export default function DPRPage() {
         vendor_id: '',
         labor_ids: [],
         work_id: '',
-        inches: 9,
+        inches: 0,
         sft: 0,
         rate: 0,
         remarks: ''
@@ -172,7 +172,7 @@ export default function DPRPage() {
     const saveEntry = async () => {
         if (!selectedProjectId) return alert("Select a project first");
 
-        const total_balance = (formEntry.sft || 0) * (formEntry.rate || 0);
+        const total_balance = formEntry.sft === -1 ? 0 : (formEntry.sft || 0) * (formEntry.rate || 0);
 
         if (editingId) {
             try {
@@ -185,7 +185,7 @@ export default function DPRPage() {
                     vendor_id: '',
                     labor_ids: [],
                     work_id: '',
-                    inches: 9,
+                    inches: 0,
                     sft: 0,
                     rate: 0,
                     remarks: ''
@@ -235,7 +235,7 @@ export default function DPRPage() {
     }, [projects, selectedProjectId]);
 
     const stats = useMemo(() => {
-        const totalSFT = entries.reduce((sum, e) => sum + (e.sft || 0), 0);
+        const totalSFT = entries.reduce((sum, e) => sum + (e.sft === -1 ? 0 : (e.sft || 0)), 0);
         const totalBalance = entries.reduce((sum, e) => sum + (e.total_balance || 0), 0);
         return { totalSFT, totalBalance };
     }, [entries]);
@@ -280,7 +280,7 @@ export default function DPRPage() {
         entries.forEach(e => {
             const name = e.vendor_name || 'Unassigned';
             if (!statsMap[name]) statsMap[name] = { sft: 0, balance: 0 };
-            statsMap[name].sft += (e.sft || 0);
+            statsMap[name].sft += (e.sft === -1 ? 0 : (e.sft || 0));
             statsMap[name].balance += (e.total_balance || 0);
         });
         return Object.entries(statsMap).map(([name, data]) => ({ name, ...data }));
@@ -396,10 +396,10 @@ export default function DPRPage() {
             doc.text(dateStr, pageWidth - 10, headerHeight + 11, { align: 'right' });
         };
 
-        const totalSFT = entries.reduce((sum, e) => sum + (e.sft || 0), 0);
+        const totalSFT = entries.reduce((sum, e) => sum + (e.sft === -1 ? 0 : (e.sft || 0)), 0);
         const totalBalance = entries.reduce((sum, e) => sum + (e.total_balance || 0), 0);
 
-        const tableBody = entries.map(e => {
+        const tableBody = entries.map((e, idx) => {
             // Fix missing names using state lookups
             const vendorName = e.vendor_name || vendors.find(v => v.id === e.vendor_id)?.name || '';
             const workName = e.work_name || works.find(w => w.id === e.work_id)?.name || '';
@@ -410,15 +410,15 @@ export default function DPRPage() {
             }
 
             return [
-                (e.sr_no || 0).toString().padStart(3, '0'),
+                (idx + 1).toString().padStart(3, '0'),
                 `${new Date(e.date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}\n(${getDayName(e.date)})`,
                 e.weather,
                 vendorName,
                 laborNames || '-',
                 workName,
-                formatHeight(e.inches),
-                e.sft.toLocaleString(),
-                e.rate.toLocaleString(),
+                e.inches ? formatHeight(e.inches) : '-',
+                e.sft === -1 ? 'OFF' : e.sft.toLocaleString(),
+                e.sft === -1 ? '-' : e.rate.toLocaleString(),
                 e.total_balance.toLocaleString()
             ];
         });
@@ -909,9 +909,10 @@ export default function DPRPage() {
                                             <label className="text-[10px] font-bold text-amber-600 uppercase ml-1">Wall Inches</label>
                                             <select
                                                 className="w-full h-11 px-4 bg-slate-50 border border-amber-100 rounded-xl text-slate-900 outline-none"
-                                                value={formEntry.inches}
-                                                onChange={e => setFormEntry({ ...formEntry, inches: Number(e.target.value) })}
+                                                value={formEntry.inches || ''}
+                                                onChange={e => setFormEntry({ ...formEntry, inches: e.target.value ? Number(e.target.value) : 0 })}
                                             >
+                                                <option value="">-- No Wall --</option>
                                                 <option value="4.5">4.5" Wall</option>
                                                 <option value="9">9" Wall</option>
                                                 <option value="13.5">13.5" Wall</option>
@@ -919,9 +920,23 @@ export default function DPRPage() {
                                                 <option value="23">23" Wall</option>
                                             </select>
                                         </div>
-                                        <div className="space-y-1.5">
-                                            <label className="text-[10px] font-bold text-emerald-600 uppercase ml-1">SFT</label>
-                                            <Input type="number" value={formEntry.sft || ''} onChange={e => setFormEntry({ ...formEntry, sft: Number(e.target.value) })} className="bg-slate-50 border-emerald-100 text-slate-900 h-11 font-black" />
+                                        <div className="space-y-1.5 flex flex-col justify-end">
+                                            <div className="flex justify-between items-center px-1">
+                                                <label className="text-[10px] font-bold text-emerald-600 uppercase">SFT</label>
+                                                <button 
+                                                    onClick={() => setFormEntry({...formEntry, sft: formEntry.sft === -1 ? 0 : -1})}
+                                                    className={`text-[8px] px-2 py-0.5 rounded font-black cursor-pointer transition-colors ${formEntry.sft === -1 ? 'bg-red-500 text-white shadow-sm' : 'bg-slate-200 text-slate-500 hover:bg-slate-300'}`}
+                                                >
+                                                    {formEntry.sft === -1 ? 'OFF SELECTED' : 'MARK OFF'}
+                                                </button>
+                                            </div>
+                                            <Input 
+                                                type={formEntry.sft === -1 ? "text" : "number"} 
+                                                value={formEntry.sft === -1 ? 'OFF' : (formEntry.sft || '')} 
+                                                onChange={e => setFormEntry({ ...formEntry, sft: Number(e.target.value) })} 
+                                                disabled={formEntry.sft === -1}
+                                                className={`bg-slate-50 border-emerald-100 h-11 font-black ${formEntry.sft === -1 ? 'text-red-500 text-center opacity-80 cursor-not-allowed' : 'text-slate-900'}`} 
+                                            />
                                         </div>
                                     </div>
                                     <div className="space-y-1.5">
@@ -1016,9 +1031,9 @@ export default function DPRPage() {
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-slate-50">
-                                {filteredEntries.length > 0 ? filteredEntries.map((e) => (
+                                {filteredEntries.length > 0 ? filteredEntries.map((e, idx) => (
                                     <tr key={e.id} className="hover:bg-slate-50/50 transition-colors group">
-                                        <td className="py-5 px-6 text-sm font-mono font-bold text-slate-400">#{(e.sr_no || 0).toString().padStart(3, '0')}</td>
+                                        <td className="py-5 px-6 text-sm font-mono font-bold text-slate-400">#{(idx + 1).toString().padStart(3, '0')}</td>
                                         <td className="py-5 px-6">
                                             <p className="text-sm font-black text-slate-800 whitespace-nowrap">
                                                 {new Date(e.date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}
@@ -1048,11 +1063,17 @@ export default function DPRPage() {
                                             </span>
                                         </td>
                                         <td className="py-5 px-6">
-                                            <div className="flex items-center gap-2">
-                                                <span className="text-base font-black text-slate-900">{e.sft.toLocaleString()}</span>
-                                                <span className="text-[10px] font-bold text-slate-400 bg-slate-100 px-2 py-0.5 rounded">SFT</span>
-                                                {e.inches > 0 && <span className="text-[10px] font-black text-amber-600">{e.inches}" In.</span>}
-                                            </div>
+                                            {e.sft === -1 ? (
+                                                <div className="flex items-center gap-2">
+                                                    <span className="text-base font-black text-red-500 bg-red-50 px-3 py-1 rounded">OFF</span>
+                                                </div>
+                                            ) : (
+                                                <div className="flex items-center gap-2">
+                                                    <span className="text-base font-black text-slate-900">{e.sft.toLocaleString()}</span>
+                                                    <span className="text-[10px] font-bold text-slate-400 bg-slate-100 px-2 py-0.5 rounded">SFT</span>
+                                                    {(e.inches || 0) > 0 && <span className="text-[10px] font-black text-amber-600">{e.inches}" In.</span>}
+                                                </div>
+                                            )}
                                         </td>
                                         <td className="py-5 px-6">
                                             <p className="text-xs text-slate-500 font-medium italic max-w-[200px] leading-relaxed line-clamp-2" title={e.remarks}>
@@ -1060,7 +1081,9 @@ export default function DPRPage() {
                                             </p>
                                         </td>
                                         <td className="py-5 px-6 text-right">
-                                            <p className="text-[10px] font-black text-slate-400">@ Rs. {e.rate.toLocaleString()}</p>
+                                            {e.sft !== -1 && (
+                                                <p className="text-[10px] font-black text-slate-400">@ Rs. {e.rate.toLocaleString()}</p>
+                                            )}
                                             <p className="text-base font-black text-emerald-600">Rs. {e.total_balance.toLocaleString()}</p>
                                         </td>
                                         <td className="py-5 px-6">
@@ -1087,7 +1110,7 @@ export default function DPRPage() {
                                     <tr>
                                         <td colSpan={5} className="py-6 px-6 text-right font-black text-slate-500 uppercase tracking-widest text-xs">Project Filtered Totals</td>
                                         <td className="py-6 px-6 font-black text-emerald-400 text-lg">
-                                            {filteredEntries.reduce((sum, e) => sum + (e.sft || 0), 0).toLocaleString()} <span className="text-[10px] ml-1">SFT</span>
+                                            {filteredEntries.reduce((sum, e) => sum + (e.sft === -1 ? 0 : (e.sft || 0)), 0).toLocaleString()} <span className="text-[10px] ml-1">SFT</span>
                                         </td>
                                         <td colSpan={1}></td>
                                         <td className="py-6 px-6 text-right font-black text-amber-400 text-lg">
