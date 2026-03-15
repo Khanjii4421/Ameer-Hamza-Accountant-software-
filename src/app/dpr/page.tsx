@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Header } from '@/components/layout/Header';
 import { DatePicker } from "@/components/ui/DatePicker";
-import { api, DPRVendor, DPRLabor, DPRProject, DPRWork, DPREntry, CompanyProfile, DPRRate } from '@/lib/api';
+import { api, DPRVendor, DPRLabor, DPRProject, DPRWork, DPREntry, CompanyProfile, DPRRate, LaborExpense } from '@/lib/api';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 
@@ -20,6 +20,8 @@ export default function DPRPage() {
     const [projects, setProjects] = useState<DPRProject[]>([]);
     const [works, setWorks] = useState<DPRWork[]>([]);
     const [entries, setEntries] = useState<DPREntry[]>([]);
+    const [laborExpenses, setLaborExpenses] = useState<LaborExpense[]>([]);
+    const [manualPaid, setManualPaid] = useState<Record<string, number>>({});
     const [selectedProjectId, setSelectedProjectId] = useState<string>('');
     const [showToast, setShowToast] = useState({ visible: false, message: '' });
     const [fixedRates, setFixedRates] = useState<DPRRate[]>([]);
@@ -65,13 +67,14 @@ export default function DPRPage() {
     const loadInitialData = async () => {
         setLoading(true);
         try {
-            const [vRes, lRes, pRes, wRes, rRes, profRes] = await Promise.all([
+            const [vRes, lRes, pRes, wRes, rRes, profRes, expRes] = await Promise.all([
                 api.dpr.vendors.getAll(),
                 api.dpr.labors.getAll(),
                 api.dpr.projects.getAll(),
                 api.dpr.works.getAll(),
                 api.dpr.rates.getAll(),
-                api.profile.get()
+                api.profile.get(),
+                api.laborExpenses.getAll()
             ]);
             setVendors(Array.isArray(vRes) ? vRes : []);
             setLabors(Array.isArray(lRes) ? lRes : []);
@@ -79,6 +82,7 @@ export default function DPRPage() {
             setWorks(Array.isArray(wRes) ? wRes : []);
             setFixedRates(Array.isArray(rRes) ? rRes : []);
             setProfile(profRes);
+            setLaborExpenses(Array.isArray(expRes) ? expRes : []);
         } catch (error) {
             console.error("Failed to load DPR data", error);
         } finally {
@@ -276,15 +280,26 @@ export default function DPRPage() {
     }, [entries, searchTerm, filterVendorId]);
 
     const contractorStats = useMemo(() => {
-        const statsMap: Record<string, { sft: number, balance: number }> = {};
+        const statsMap: Record<string, { id: string, name: string, sft: number, balance: number, autoPaid: number, manualPaid: number, remaining: number }> = {};
         entries.forEach(e => {
             const name = e.vendor_name || 'Unassigned';
-            if (!statsMap[name]) statsMap[name] = { sft: 0, balance: 0 };
+            if (!statsMap[name]) statsMap[name] = { id: e.vendor_id || '', name, sft: 0, balance: 0, autoPaid: 0, manualPaid: 0, remaining: 0 };
             statsMap[name].sft += (e.sft === -1 ? 0 : (e.sft || 0));
             statsMap[name].balance += (e.total_balance || 0);
         });
-        return Object.entries(statsMap).map(([name, data]) => ({ name, ...data }));
-    }, [entries]);
+
+        Object.values(statsMap).forEach(stat => {
+            const relatedExps = laborExpenses.filter(ex => 
+                (ex.vendor_id === stat.id || ex.vendor_name === stat.name) &&
+                (selectedProject ? (ex.site_id === selectedProject.id || ex.site_name === selectedProject.name) : true)
+            );
+            stat.autoPaid = relatedExps.reduce((sum, current) => sum + (current.amount || 0), 0);
+            stat.manualPaid = manualPaid[stat.id] !== undefined ? manualPaid[stat.id] : stat.autoPaid;
+            stat.remaining = stat.balance - stat.manualPaid;
+        });
+
+        return Object.values(statsMap);
+    }, [entries, laborExpenses, manualPaid, selectedProject]);
 
     const activityChart = useMemo(() => {
         const last7 = Array.from({ length: 7 }, (_, i) => {
@@ -526,6 +541,39 @@ export default function DPRPage() {
         }
 
         const sigY = checkPageBreak ? 80 : finalY;
+
+        // --- Financial Summary Box ---
+        const totalPaidAmount = contractorStats.reduce((sum, cs) => sum + (cs.manualPaid || 0), 0);
+        const totalRemainingAmount = totalBalance - totalPaidAmount;
+
+        const boxWidth = 60;
+        const boxX = pageWidth - boxWidth - 10;
+        
+        doc.setFillColor(248, 250, 252);
+        doc.setDrawColor(203, 213, 225);
+        doc.rect(boxX, sigY, boxWidth, 22, 'FD');
+
+        doc.setFontSize(8);
+        doc.setFont("helvetica", "bold");
+        doc.setTextColor(51, 65, 85);
+        doc.text("FINANCIAL SUMMARY", boxX + boxWidth / 2, sigY + 5, { align: 'center' });
+
+        doc.line(boxX, sigY + 7, boxX + boxWidth, sigY + 7);
+
+        doc.setFontSize(8);
+        doc.setFont("helvetica", "normal");
+        
+        doc.text("Total Paid:", boxX + 5, sigY + 12);
+        doc.setFont("helvetica", "bold");
+        doc.setTextColor(21, 128, 61);
+        doc.text(`Rs. ${totalPaidAmount.toLocaleString()}`, boxX + boxWidth - 5, sigY + 12, { align: 'right' });
+
+        doc.setFont("helvetica", "normal");
+        doc.setTextColor(51, 65, 85);
+        doc.text("Remaining:", boxX + 5, sigY + 18);
+        doc.setFont("helvetica", "bold");
+        doc.setTextColor(180, 83, 9);
+        doc.text(`Rs. ${totalRemainingAmount.toLocaleString()}`, boxX + boxWidth - 5, sigY + 18, { align: 'right' });
 
         doc.setDrawColor(0);
         doc.setLineWidth(0.5);
@@ -987,11 +1035,31 @@ export default function DPRPage() {
                             </div>
                             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                                 {contractorStats.length > 0 ? contractorStats.map((cs, idx) => (
-                                    <div key={idx} className="p-4 bg-slate-50 rounded-2xl border border-slate-100 group hover:border-emerald-200 transition-all">
+                                    <div key={idx} className="p-4 bg-slate-50 rounded-2xl border border-slate-100 group hover:border-emerald-200 transition-all flex flex-col">
                                         <p className="text-[10px] font-black text-slate-400 uppercase truncate mb-1">{cs.name}</p>
-                                        <div className="flex justify-between items-end">
+                                        <div className="flex justify-between items-end mb-2">
                                             <p className="text-xl font-black text-slate-900">{cs.sft.toLocaleString()}<span className="text-[10px] text-slate-400 font-bold ml-1">SFT</span></p>
-                                            <p className="text-[10px] font-black text-emerald-600">Rs. {cs.balance.toLocaleString()}</p>
+                                        </div>
+                                        <div className="space-y-1.5 mt-auto pt-2 border-t border-slate-200">
+                                            <div className="flex justify-between items-center text-[10px] font-bold">
+                                                <span className="text-slate-500 uppercase">Valuation</span>
+                                                <span className="text-emerald-600">Rs. {cs.balance.toLocaleString()}</span>
+                                            </div>
+                                            <div className="flex justify-between items-center text-[10px] font-bold">
+                                                <span className="text-slate-500 uppercase">Paid</span>
+                                                <input 
+                                                    type="number" 
+                                                    className="w-20 h-6 px-1 text-right bg-white border border-slate-200 rounded text-[10px] text-blue-600 font-black outline-none focus:border-blue-500"
+                                                    value={cs.manualPaid || ''}
+                                                    placeholder={cs.autoPaid.toString()}
+                                                    onChange={(e) => setManualPaid(prev => ({...prev, [cs.id]: Number(e.target.value)}))}
+                                                    title={`Auto Fetched: Rs. ${cs.autoPaid.toLocaleString()} from Labor Expenses`}
+                                                />
+                                            </div>
+                                            <div className="flex justify-between items-center text-[10px] font-black">
+                                                <span className="text-slate-500 uppercase">Remaining</span>
+                                                <span className={cs.remaining > 0 ? 'text-amber-600' : 'text-slate-500'}>Rs. {cs.remaining.toLocaleString()}</span>
+                                            </div>
                                         </div>
                                     </div>
                                 )) : <div className="col-span-4 py-8 text-center text-slate-400 italic text-sm">No contractor data matched.</div>}
