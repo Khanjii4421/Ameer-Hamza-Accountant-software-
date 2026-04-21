@@ -38,16 +38,10 @@ export default function BikeIssuancePage() {
         const file = e.target.files?.[0];
         if (!file) return;
 
-        const formData = new FormData();
-        formData.append('file', file);
-
         setUploading(true);
         try {
-            const res = await fetch('/api/upload', { method: 'POST', body: formData });
-            const data = await res.json();
-            if (data.urls && data.urls.length > 0) {
-                setForm(prev => ({ ...prev, photo_url: data.urls[0] }));
-            }
+            const url = await api.upload(file);
+            setForm(prev => ({ ...prev, photo_url: url }));
         } catch (error) {
             console.error("Upload Error:", error);
             alert("Upload failed");

@@ -224,14 +224,7 @@ export default function LaborVendorLedgerPage() {
 
         setIsUploading(true);
         try {
-            const data = new FormData();
-            data.append('file', file);
-            const res = await fetch('/api/upload', {
-                method: 'POST',
-                body: data
-            });
-            if (!res.ok) throw new Error('Upload failed');
-            const { url } = await res.json();
+            const url = await api.upload(file);
             setTransactionForm(prev => ({ ...prev, proof_url: url }));
         } catch (error) {
             console.error(error);

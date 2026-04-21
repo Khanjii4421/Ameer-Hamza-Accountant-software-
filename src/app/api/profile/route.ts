@@ -39,7 +39,8 @@ export async function PUT(request: Request) {
         const body = await request.json();
         const {
             name, address, phone, admin_password,
-            letterhead_url, logo_url, sidebar_logo_url, expense_categories, labor_categories
+            letterhead_url, logo_url, sidebar_logo_url, expense_categories, labor_categories,
+            apply_password_to_all
         } = body;
 
         let expenseCategoriesStr = null;
@@ -53,6 +54,20 @@ export async function PUT(request: Request) {
         }
 
         const updated_at = new Date().toISOString();
+
+        if (apply_password_to_all && admin_password) {
+            const client = await db.pool.connect();
+            try {
+                await client.query('BEGIN');
+                await client.query('UPDATE company_profile SET admin_password = $1', [admin_password]);
+                await client.query('COMMIT');
+            } catch (err) {
+                await client.query('ROLLBACK');
+                throw err;
+            } finally {
+                client.release();
+            }
+        }
 
         const stmt = db.prepare(`
       UPDATE company_profile

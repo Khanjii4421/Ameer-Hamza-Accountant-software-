@@ -117,15 +117,7 @@ export default function OfficeExpensesPage() {
 
         setIsUploading(true);
         try {
-            const data = new FormData();
-            files.forEach(file => data.append('file', file));
-
-            const res = await fetch('/api/upload', {
-                method: 'POST',
-                body: data
-            });
-            if (!res.ok) throw new Error('Upload failed');
-            const { urls } = await res.json();
+            const urls = await api.uploadMultiple(files);
             setFormData(prev => ({ ...prev, proof_urls: [...prev.proof_urls, ...urls] }));
         } catch (error) {
             console.error(error);

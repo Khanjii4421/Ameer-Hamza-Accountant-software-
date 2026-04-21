@@ -278,14 +278,11 @@ export default function ProjectDetailsClient({ projectId }: { projectId: string 
         if (files.length === 0) return;
 
         try {
-            const formData = new FormData();
-            files.forEach(file => formData.append('file', file));
-            const res = await fetch('/api/upload', { method: 'POST', body: formData });
-            const data = await res.json();
-            if (data.urls) {
+            const urls = await api.uploadMultiple(files);
+            if (urls && urls.length > 0) {
                 setEntryForm(prev => ({
                     ...prev,
-                    attachment_urls: [...prev.attachment_urls, ...data.urls]
+                    attachment_urls: [...prev.attachment_urls, ...urls]
                 }));
             }
         } catch (err) { alert('Upload failed'); }

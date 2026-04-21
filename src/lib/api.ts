@@ -489,6 +489,7 @@ export const api = {
         // without requiring a company header here.
         getAll: () => request<User[]>('/api/users', 'GET', undefined, false),
         add: (user: Omit<User, 'id' | 'company_id'>) => request<User>('/api/users', 'POST', user),
+        changePassword: (id: string, password: string) => request<{ success: boolean }>(`/api/users/${id}`, 'PATCH', { password }),
         delete: (id: string) => request<void>(`/api/users/${id}`, 'DELETE')
     },
 
@@ -735,5 +736,39 @@ export const api = {
             update: (id: string, data: Partial<DPREntry>) => request<void>(`/api/dpr/entries/${id}`, 'PUT', data),
             delete: (id: string) => request<void>(`/api/dpr/entries/${id}`, 'DELETE')
         }
+    },
+    // 23. Upload
+    uploadMultiple: async (files: File[]): Promise<string[]> => {
+        const formData = new FormData();
+        // Dynamically import compressImage to avoid issues if imported outside the browser
+        const { compressImage } = await import('@/utils/imageUtils');
+        
+        for (const file of files) {
+            let finalFile: File | Blob = file;
+            if (file.type.startsWith('image/')) {
+                try {
+                    // Compress to max 800px at 60% quality for very fast loading
+                    finalFile = await compressImage(file, 800, 800, 0.6);
+                } catch (error) {
+                    console.error("Compression failed:", error);
+                }
+            }
+            const fileToUpload = finalFile instanceof Blob && !(finalFile instanceof File)
+                ? new File([finalFile], file.name, { type: file.type || 'image/jpeg' }) 
+                : finalFile as File;
+            formData.append('file', fileToUpload);
+        }
+
+        const res = await fetch('/api/upload', {
+            method: 'POST',
+            body: formData
+        });
+        if (!res.ok) throw new Error('Upload failed');
+        const data = await res.json();
+        return data.urls;
+    },
+    upload: async (file: File): Promise<string> => {
+        const urls = await api.uploadMultiple([file]);
+        return urls[0];
     }
 };

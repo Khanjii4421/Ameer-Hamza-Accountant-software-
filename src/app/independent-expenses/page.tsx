@@ -128,14 +128,7 @@ export default function IndependentExpensesPage() {
 
         setIsUploading(true);
         try {
-            const data = new FormData();
-            files.forEach(file => data.append('file', file));
-            const res = await fetch('/api/upload', {
-                method: 'POST',
-                body: data
-            });
-            if (!res.ok) throw new Error('Upload failed');
-            const { urls } = await res.json();
+            const urls = await api.uploadMultiple(files);
             // Assuming single file upload for now based on "slip" singular, taking first url
             const url = urls[0];
             setForm(prev => ({ ...prev, slip_url: url }));

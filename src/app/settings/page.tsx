@@ -9,6 +9,7 @@ import Image from "next/image";
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
 import { api, CompanyProfile, User, HREmployee } from '@/lib/api';
+import { compressImage } from "@/utils/imageUtils";
 
 export default function SettingsPage() {
     const { user } = useAuth();
@@ -32,10 +33,18 @@ export default function SettingsPage() {
     const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
     const [isUserModalOpen, setIsUserModalOpen] = useState(false);
 
+    // Admin password change state
+    const [pwdForm, setPwdForm] = useState({ newPassword: '', confirmPassword: '' });
+    const [pwdLoading, setPwdLoading] = useState(false);
+    const [pwdMsg, setPwdMsg] = useState<{ type: 'success' | 'error', text: string } | null>(null);
+
     const [tempProfile, setTempProfile] = useState<CompanyProfile>(profile);
     const [tempUser, setTempUser] = useState<{ name: string, username: string, password: string, role: string, employee_id?: string }>({
         name: '', username: '', password: '', role: 'Accountant', employee_id: ''
     });
+
+    // Asset uploading states
+    const [uploading, setUploading] = useState<{ [key: string]: boolean }>({});
 
     // Auth Check
     useEffect(() => {
@@ -84,12 +93,6 @@ export default function SettingsPage() {
                 logo_url: tempProfile.logo_url,
                 sidebar_logo_url: tempProfile.sidebar_logo_url
             };
-
-            // Only include admin_password if a non-empty value was provided
-            if (tempProfile.admin_password && tempProfile.admin_password.toString().trim() !== '') {
-                updates.admin_password = tempProfile.admin_password;
-            }
-
             const updated = await api.profile.update(updates);
             setProfile(updated);
             setIsProfileModalOpen(false);
@@ -98,17 +101,73 @@ export default function SettingsPage() {
         }
     };
 
-    const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>, field: 'letterhead_url' | 'logo_url' | 'sidebar_logo_url') => {
+    const handleChangeAdminPassword = async (e: React.FormEvent) => {
+        e.preventDefault();
+        setPwdMsg(null);
+
+        if (pwdForm.newPassword.trim().length < 4) {
+            setPwdMsg({ type: 'error', text: 'Password must be at least 4 characters.' });
+            return;
+        }
+        if (pwdForm.newPassword !== pwdForm.confirmPassword) {
+            setPwdMsg({ type: 'error', text: 'Passwords do not match.' });
+            return;
+        }
+
+        // Find the current admin user (the logged-in user)
+        const adminUser = users.find(u => u.id === user?.id);
+        if (!adminUser) {
+            setPwdMsg({ type: 'error', text: 'Admin user not found.' });
+            return;
+        }
+
+        setPwdLoading(true);
+        try {
+            // 1. Update the user password in the users table
+            await api.users.changePassword(adminUser.id, pwdForm.newPassword.trim());
+            
+            // 2. Update the admin_password in the company_profile table
+            await api.profile.update({ admin_password: pwdForm.newPassword.trim() });
+
+            // Update localStorage so current session reflects new password
+            const storedUser = localStorage.getItem('current_user');
+            if (storedUser) {
+                const parsed = JSON.parse(storedUser);
+                parsed.password = pwdForm.newPassword.trim();
+                localStorage.setItem('current_user', JSON.stringify(parsed));
+            }
+            setPwdMsg({ type: 'success', text: 'Password changed successfully across system! Use the new password next time you log in.' });
+            setPwdForm({ newPassword: '', confirmPassword: '' });
+            
+            // Refresh local profile state
+            const updatedProfile = await api.profile.get();
+            if (updatedProfile) setProfile(updatedProfile);
+
+        } catch (err: any) {
+            setPwdMsg({ type: 'error', text: err.message || 'Failed to change password.' });
+        } finally {
+            setPwdLoading(false);
+        }
+    };
+
+    const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>, field: 'letterhead_url' | 'logo_url' | 'sidebar_logo_url') => {
         const file = e.target.files?.[0];
-        if (file) {
-            const reader = new FileReader();
-            reader.onloadend = () => {
-                setTempProfile(prev => ({
-                    ...prev,
-                    [field]: reader.result as string
-                }));
-            };
-            reader.readAsDataURL(file);
+        if (!file) return;
+
+        setUploading(prev => ({ ...prev, [field]: true }));
+        try {
+            // Upload to Supabase (compression is handled globally in api.upload)
+            const url = await api.upload(file);
+
+            setTempProfile(prev => ({
+                ...prev,
+                [field]: url
+            }));
+        } catch (error) {
+            console.error("Upload failed:", error);
+            alert("Failed to upload image. Please try again.");
+        } finally {
+            setUploading(prev => ({ ...prev, [field]: false }));
         }
     };
 
@@ -242,6 +301,43 @@ export default function SettingsPage() {
                     </div>
                 </Card>
 
+                {/* Change Admin Password */}
+                {user?.role === 'Admin' && (
+                    <Card title="Change Admin Password">
+                        <form onSubmit={handleChangeAdminPassword} className="space-y-4 max-w-md">
+                            <p className="text-sm text-gray-500">Update the password used to log in to this admin account.</p>
+
+                            {pwdMsg && (
+                                <div className={`p-3 rounded-lg text-sm font-medium ${
+                                    pwdMsg.type === 'success'
+                                        ? 'bg-green-50 border border-green-200 text-green-700'
+                                        : 'bg-red-50 border border-red-200 text-red-700'
+                                }`}>
+                                    {pwdMsg.type === 'success' ? '✅' : '⚠️'} {pwdMsg.text}
+                                </div>
+                            )}
+
+                            <Input
+                                label="New Password"
+                                type="password"
+                                value={pwdForm.newPassword}
+                                onChange={e => { setPwdForm({ ...pwdForm, newPassword: e.target.value }); setPwdMsg(null); }}
+                                required
+                            />
+                            <Input
+                                label="Confirm New Password"
+                                type="password"
+                                value={pwdForm.confirmPassword}
+                                onChange={e => { setPwdForm({ ...pwdForm, confirmPassword: e.target.value }); setPwdMsg(null); }}
+                                required
+                            />
+                            <Button type="submit" variant="primary" disabled={pwdLoading}>
+                                {pwdLoading ? 'Saving...' : 'Update Password'}
+                            </Button>
+                        </form>
+                    </Card>
+                )}
+
                 {/* User Management */}
                 {canManageUsers && (
                     <Card title="User Management">
@@ -274,22 +370,27 @@ export default function SettingsPage() {
                     <Input label="Company Name" value={tempProfile.name || ''} onChange={e => setTempProfile({ ...tempProfile, name: e.target.value })} />
                     <Input label="Address" value={tempProfile.address || ''} onChange={e => setTempProfile({ ...tempProfile, address: e.target.value })} />
                     <Input label="Phone" value={tempProfile.phone || ''} onChange={e => setTempProfile({ ...tempProfile, phone: e.target.value })} />
-                    <Input label="Admin Password" value={tempProfile.admin_password || ''} onChange={e => setTempProfile({ ...tempProfile, admin_password: e.target.value })} />
 
                     <div className="border-t pt-4 mt-4">
                         <h4 className="font-medium text-gray-900 mb-3">Branding Assets</h4>
                         <div className="space-y-4">
                             <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1.5">Letterhead</label>
-                                <input type="file" accept="application/pdf, image/*" onChange={(e) => handleFileChange(e, 'letterhead_url')} className="block w-full text-sm" />
+                                <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                                    Letterhead {uploading.letterhead_url && <span className="text-blue-500 animate-pulse">(Uploading...)</span>}
+                                </label>
+                                <input type="file" accept="application/pdf, image/*" onChange={(e) => handleFileChange(e, 'letterhead_url')} className="block w-full text-sm" disabled={uploading.letterhead_url} />
                             </div>
                             <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1.5">Center Logo</label>
-                                <input type="file" accept="image/*" onChange={(e) => handleFileChange(e, 'logo_url')} className="block w-full text-sm" />
+                                <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                                    Center Logo {uploading.logo_url && <span className="text-blue-500 animate-pulse">(Uploading...)</span>}
+                                </label>
+                                <input type="file" accept="image/*" onChange={(e) => handleFileChange(e, 'logo_url')} className="block w-full text-sm" disabled={uploading.logo_url} />
                             </div>
                             <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1.5">Sidebar Logo</label>
-                                <input type="file" accept="image/*" onChange={(e) => handleFileChange(e, 'sidebar_logo_url')} className="block w-full text-sm" />
+                                <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                                    Sidebar Logo {uploading.sidebar_logo_url && <span className="text-blue-500 animate-pulse">(Uploading...)</span>}
+                                </label>
+                                <input type="file" accept="image/*" onChange={(e) => handleFileChange(e, 'sidebar_logo_url')} className="block w-full text-sm" disabled={uploading.sidebar_logo_url} />
                             </div>
                         </div>
                     </div>

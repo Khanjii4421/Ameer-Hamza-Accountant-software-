@@ -48,18 +48,9 @@ export default function HRChecklistPage() {
     };
 
     const handleFileUpload = async (id: string, file: File) => {
-        const formData = new FormData();
-        formData.append('file', file);
-
         try {
-            const res = await fetch('/api/upload', {
-                method: 'POST',
-                body: formData
-            });
-            const data = await res.json();
-            if (data.urls && data.urls.length > 0) {
-                setFiles(prev => ({ ...prev, [id]: data.urls[0] }));
-            }
+            const url = await api.upload(file);
+            setFiles(prev => ({ ...prev, [id]: url }));
         } catch (e) {
             console.error("Upload failed", e);
             alert("File upload failed");

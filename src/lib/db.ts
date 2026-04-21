@@ -69,7 +69,8 @@ export const db = {
       console.error('DB exec error:', error, 'SQL:', sql);
       throw error;
     }
-  }
+  },
+  pool // Export pool directly for transactions
 };
 
 export async function initDatabase() {
